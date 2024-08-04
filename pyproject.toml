@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lymbo"
+authors = [
+    {name = "cle-b", email = "cle@tictac.pm"},
+]
+description="Test runner."
+readme="README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",    
+    "Topic :: Software Development :: Testing",
+    "Topic :: Utilities",
+]
+dynamic = ["version"]
+
+[project.urls]
+Source = "https://github.com/cle-b/lymbo/"
+
+[project.scripts]
+lymbo = "lymbo.__main__:lymbo_entry_point"
+
+[tool.setuptools]
+packages = ["lymbo"]
+
+[tool.setuptools.dynamic]
+version = {attr = "lymbo.__version__"}
+
+[tool.mypy]
+no_implicit_optional = false
+files = ["lymbo"]
