@@ -8,6 +8,7 @@ from typing import Union
 from lymbo.config import GroupBy
 from lymbo.env import LYMBO_TEST_COLLECTION
 from lymbo.item import TestItem
+from lymbo.item import TestPlan
 
 from lymbo.cm import args
 
@@ -125,7 +126,7 @@ def parse_body(
     return collected_tests
 
 
-def collect_tests(paths: list[Path], group_by: GroupBy) -> list[list[TestItem]]:
+def collect_tests(paths: list[Path], group_by: GroupBy) -> TestPlan:
     """Collect all the functions/methods decorated with @lymbo.test."""
 
     tests = []
@@ -138,7 +139,7 @@ def collect_tests(paths: list[Path], group_by: GroupBy) -> list[list[TestItem]]:
 
     del os.environ[LYMBO_TEST_COLLECTION]
 
-    return tests
+    return TestPlan(tests)
 
 
 def eval_ast_call(call_node, global_vars, local_vars):

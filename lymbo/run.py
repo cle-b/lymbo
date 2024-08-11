@@ -21,7 +21,7 @@ def run_tests(tests: list[TestItem]):
         path = test_item.path
         name = test_item.fnc
         cls = test_item.cls
-        args, kwargs = test_item.args
+        args, kwargs = test_item.parameters
 
         run_function(path, name, cls, args, kwargs)
 
