@@ -21,40 +21,44 @@ def run_tests(tests: list[TestItem]):
         path = test_item.path
         name = test_item.fnc
         cls = test_item.cls
+        args, kwargs = test_item.args
 
-        print(f"EXECUTE [{path.parent.absolute()}] {path.name} - {cls} {name}")
+        run_function(path, name, cls, args, kwargs)
 
-        syspath = sys.path + [
-            str(path.parent.absolute()),
-        ]
 
-        with patch.object(sys, "path", syspath):
+def run_function(path, name, cls, args=(), kwargs={}):
 
-            try:
-                module = __import__(str(path.name[:-3]))
-                if cls:
-                    classdef = getattr(module, cls)
-                    self = classdef()
-                    test_function = getattr(self, name)
+    print(f"EXECUTE [{path.parent.absolute()}] {path.name} - {cls} {name}")
 
-                    # test with static method too
+    syspath = sys.path + [
+        str(path.parent.absolute()),
+    ]
 
-                    try:
-                        test_function()
-                    except Exception as ex:
-                        print(
-                            f"Exception during execution test ({path} - {name}): [{ex}]"
-                        )
+    with patch.object(sys, "path", syspath):
 
-                else:
-                    test_function = getattr(module, name)
+        try:
+            module = __import__(str(path.name[:-3]))
+            if cls:
+                classdef = getattr(module, cls)
+                self = classdef()
+                test_function = getattr(self, name)
 
-                    try:
-                        test_function()
-                    except Exception as ex:
-                        print(
-                            f"Exception during execution test ({path} - {name}): [{ex}]"
-                        )
+                # test with static method too
 
-            except Exception as ex:
-                print(f"Exception during load test ({path} - {name}): [{ex}]")
+                try:
+                    ret = test_function(*args, **kwargs)
+                except Exception as ex:
+                    print(f"Exception during execution test ({path} - {name}): [{ex}]")
+
+            else:
+                test_function = getattr(module, name)
+
+                try:
+                    ret = test_function(*args, **kwargs)
+                except Exception as ex:
+                    print(f"Exception during execution test ({path} - {name}): [{ex}]")
+
+        except Exception as ex:
+            print(f"Exception during load test ({path} - {name}): [{ex}]")
+
+        return ret

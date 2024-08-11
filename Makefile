@@ -7,11 +7,11 @@ setup:
 
 
 format:
-	black lymbo 
+	black lymbo tests
 
 lint:
-	black --check lymbo
-	flake8 lymbo
+	black --check lymbo tests
+	flake8 lymbo tests
 
 typing:
 	mypy
@@ -19,10 +19,9 @@ typing:
 check: lint typing
 
 test:
-	pytest -v -m tests/
+	python -m unittest tests/*.py
 
 clean:
-	rm -rf .pytest_cache
 	rm -rf __pycache__
 	rm -rf lymbo.egg-info
 	rm -rf venv

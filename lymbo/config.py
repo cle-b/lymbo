@@ -7,6 +7,7 @@ class GroupBy(Enum):
     NONE = "none"
     MODULE = "module"
     CLASS = "class"
+    FUNCTION = "function"
 
 
 def parse_args() -> argparse.Namespace:
