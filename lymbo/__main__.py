@@ -1,3 +1,4 @@
+import platform
 import sys
 
 import lymbo
@@ -15,12 +16,22 @@ def lymbo_entry_point():
         print(lymbo.__version__)
         sys.exit(5)
 
-    print(f"**lymbo** {lymbo.__version__}")
+    print(
+        f"** lymbo {lymbo.__version__} (python {platform.python_version()}) ({platform.platform()}) **"
+    )
 
+    print("==== collecting tests")
     test_plan = collect_tests(config.paths, config.groupby)
 
     if config.collect:
-        print("\n".join(show_test_plan(test_plan)))
+        print("\n".join(show_test_plan(test_plan, config.groupby)))
+
+    nb_tests, nb_groups = test_plan.count
+    print(
+        f"==== {nb_tests} test{'s' if nb_tests>1 else ''} in {nb_groups} group{'s' if nb_groups>1 else ''}"
+    )
+
+    if config.collect:
         sys.exit(5)
 
     run_test_plan(test_plan)
