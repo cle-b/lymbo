@@ -35,7 +35,11 @@ def parse_args() -> argparse.Namespace:
         type=GroupBy,
         choices=list(GroupBy),
         default=GroupBy.NONE,
-        help="Grouped tests are executed sequentialy",
+        help="Grouped tests are executed sequentialy.",
+    )
+
+    parser.add_argument(
+        "--report", type=Path, help="Save the report in that directory."
     )
 
     return parser.parse_args()

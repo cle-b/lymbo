@@ -4,6 +4,7 @@ import sys
 import lymbo
 from lymbo.collect import collect_tests
 from lymbo.config import parse_args
+from lymbo.report import TestReport
 from lymbo.run import run_test_plan
 from lymbo.ui import show_test_plan
 
@@ -34,7 +35,13 @@ def lymbo_entry_point():
     if config.collect:
         sys.exit(5)
 
-    run_test_plan(test_plan)
+    _ = TestReport(config.report)
+
+    print("==== running tests")
+
+    duration = run_test_plan(test_plan)
+
+    print(f"==== tests executed in {duration} second{'s' if duration>1 else ''}")
 
 
 if __name__ == "__main__":
