@@ -55,6 +55,8 @@ class TestItem:
         self.status: TestStatus = TestStatus.PENDING
         self.reason: Union[Exception, None] = None
 
+        self.scopes = {"module": f"{self.path}", "function": f"{self.path}::{self.fnc}"}
+
     def __str__(self):
 
         def print_variable(variable):
@@ -71,7 +73,7 @@ class TestItem:
         s += "("
         call = []
         for arg in args:
-            call.append(arg)
+            call.append(str(arg))
         for k, v in kwargs.items():
             call.append(f"{k}={print_variable(v)}")
         s += ",".join(call)
