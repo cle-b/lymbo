@@ -8,10 +8,10 @@ import time
 import traceback
 from unittest.mock import patch
 
-from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION, LYMBO_TEST_SCOPE_MODULE
+from lymbo.env import LYMBO_TEST_SCOPE_SESSION
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
-from lymbo.ressource import free_ressources
+from lymbo.ressource import unset_scope
 from lymbo.ressource import manage_ressources
 from lymbo.ressource import prepare_scopes
 from lymbo.ressource import set_scopes
@@ -48,7 +48,8 @@ def run_test_plan(test_plan: TestPlan) -> int:
                 pass  # TODO log result
 
             # should already be 0 but we force this value because this is what stop the ressources manager processes
-            scopes["total"] = 0
+            with scopes[LYMBO_TEST_SCOPE_SESSION]["lock"]:
+                scopes[LYMBO_TEST_SCOPE_SESSION]["count"] = 0
 
             # Wait for a maximum of 30 seconds for all ressource managers to complete
             try:
@@ -80,18 +81,12 @@ def run_tests(tests: list[TestItem], scopes: DictProxy):
         for test_item in tests:
 
             try:
-                with (
-                    patch.dict(
-                        os.environ,
-                        {LYMBO_TEST_SCOPE_MODULE: test_item.scopes["module"]},
-                    ),
-                    patch.dict(
-                        os.environ,
-                        {LYMBO_TEST_SCOPE_FUNCTION: test_item.scopes["function"]},
-                    ),
+                with patch.dict(
+                    os.environ,
+                    test_item.scopes,
                 ):
                     run_test(test_item)
-                    free_ressources(scopes, test_item)
+                    unset_scope(scopes, test_item)
             except Exception as ex:
                 print("ERROR RUN_F " + str(ex) + "\n" + traceback.format_exc())
 
@@ -127,6 +122,8 @@ def run_test(test_item: TestItem):
             test_function(*args, **kwargs)
             test_item.end()
         except Exception as ex:
+            print("##########")
+            print(traceback.format_exc())
             test_item.end(reason=ex)
 
     print(

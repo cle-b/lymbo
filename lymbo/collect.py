@@ -3,7 +3,9 @@ import glob
 import importlib
 import os
 from pathlib import Path
+import sys
 from typing import Union
+from unittest.mock import patch
 
 from lymbo.config import GroupBy
 from lymbo.env import LYMBO_TEST_COLLECTION
@@ -38,25 +40,31 @@ def list_tests_from_file(path: Path, group_by: GroupBy) -> list[list[TestItem]]:
     with open(path) as f:
         source = f.read()
 
-    tree = ast.parse(source, path)
+    syspath = sys.path + [
+        str(path.parent.absolute()),
+    ]
 
-    # get the context
-    imports = extract_imports(tree)
-    global_vars = dynamic_import_modules(
-        imports
-    )  # we must ensure the import are done, if the module contains a class
+    with patch.object(sys, "path", syspath):
 
-    local_vars: dict[str, str] = {}
-    compiled_code = compile(source, path, "exec")
-    exec(
-        compiled_code, global_vars, local_vars
-    )  # we execute the module to retrieve the global and local vars
+        tree = ast.parse(source, path)
 
-    tests = parse_body(group_by, tree.body, path, None, global_vars, local_vars)
-    if group_by == GroupBy.MODULE:
-        collected_tests.append([test[0] for test in tests])
-    else:
-        collected_tests += tests
+        # get the context
+        imports = extract_imports(tree)
+        global_vars = dynamic_import_modules(
+            imports
+        )  # we must ensure the import are done, if the module contains a class
+
+        local_vars: dict[str, str] = {}
+        compiled_code = compile(source, path, "exec")
+        exec(
+            compiled_code, global_vars, local_vars
+        )  # we execute the module to retrieve the global and local vars
+
+        tests = parse_body(group_by, tree.body, path, None, global_vars, local_vars)
+        if group_by == GroupBy.MODULE:
+            collected_tests.append([test[0] for test in tests])
+        else:
+            collected_tests += tests
 
     return collected_tests
 

@@ -16,6 +16,10 @@ from typing import Union
 
 import lymbo
 from lymbo.env import LYMBO_REPORT_PATH
+from lymbo.env import LYMBO_TEST_SCOPE_CLASS
+from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
+from lymbo.env import LYMBO_TEST_SCOPE_MODULE
+from lymbo.env import LYMBO_TEST_SCOPE_SESSION
 
 
 class TestStatus(Enum):
@@ -54,8 +58,6 @@ class TestItem:
 
         self.status: TestStatus = TestStatus.PENDING
         self.reason: Union[Exception, None] = None
-
-        self.scopes = {"module": f"{self.path}", "function": f"{self.path}::{self.fnc}"}
 
     def __str__(self):
 
@@ -126,6 +128,21 @@ class TestItem:
     @property
     def duration(self):
         return self.end_at - self.start_at
+
+    @cached_property
+    def scopes(self) -> dict:
+        scopes = {
+            LYMBO_TEST_SCOPE_MODULE: f"{self.path}",
+            LYMBO_TEST_SCOPE_SESSION: LYMBO_TEST_SCOPE_SESSION,
+        }
+
+        if self.cls:
+            scopes[LYMBO_TEST_SCOPE_CLASS] = f"{self.path}::{self.cls}"
+            scopes[LYMBO_TEST_SCOPE_FUNCTION] = f"{self.path}::{self.cls}::{self.fnc}"
+        else:
+            scopes[LYMBO_TEST_SCOPE_FUNCTION] = f"{self.path}::{self.fnc}"
+
+        return scopes
 
 
 @dataclass
