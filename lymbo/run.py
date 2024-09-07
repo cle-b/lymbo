@@ -6,12 +6,14 @@ import os
 import sys
 import time
 import traceback
+from typing import Optional
 from unittest.mock import patch
 
 from lymbo import color
 from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
+from lymbo.log import logger
 from lymbo.log import trace_call
 from lymbo.ressource import unset_scope
 from lymbo.ressource import manage_ressources
@@ -20,7 +22,7 @@ from lymbo.ressource import set_scopes
 
 
 @trace_call
-def run_test_plan(test_plan: TestPlan) -> int:
+def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int:
 
     # TODO add a try first to execute long test first
     # TODO shuffle the tests
@@ -36,15 +38,24 @@ def run_test_plan(test_plan: TestPlan) -> int:
             manage_ressources, scopes=scopes
         )
 
-        with concurrent.futures.ProcessPoolExecutor() as ressources_manager:
+        if max_workers is None:
+            max_workers = os.cpu_count()
+
+        logger().debug(f"run_test_plan - max_workers={max_workers}")
+
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=max_workers
+        ) as ressources_manager:
 
             # # Start the ressources manager processes
             ressources_manager_futures = [
                 ressources_manager.submit(manage_ressources_with_scopes)
-                for _ in range(2)  # TODO create one ressource manager per test executor
+                for _ in range(max_workers if max_workers else 4)
             ]
 
-            with concurrent.futures.ProcessPoolExecutor() as tests_executor:
+            with concurrent.futures.ProcessPoolExecutor(
+                max_workers=max_workers
+            ) as tests_executor:
                 execresult = tests_executor.map(run_tests_with_scopes, test_plan)
 
             for r in execresult:
@@ -62,11 +73,17 @@ def run_test_plan(test_plan: TestPlan) -> int:
                     try:
                         _ = future.result()  # TODO log result
                     except concurrent.futures.TimeoutError:
-                        print("A process timed out while waiting for completion.")
+                        logger().debug(
+                            "run_test_plan - A ressource manager process timed out while waiting for completion."
+                        )
                     except Exception as e:
-                        print(f"An error occurred: {e}")
+                        logger().debug(
+                            f"run_test_plan - An error occurred while waiting the ressource manager processes. exception=[{e}]"
+                        )
             except concurrent.futures.TimeoutError:
-                print("Not all processes completed within 30 seconds.")
+                logger().debug(
+                    "run_test_plan - Not all ressource manager processes completed within 30 seconds."
+                )
 
         # TODO ensure all the processes have been stopped and the ressources released.
 

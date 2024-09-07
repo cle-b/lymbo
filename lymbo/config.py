@@ -57,4 +57,11 @@ def parse_args() -> argparse.Namespace:
         help="The log level",
     )
 
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="The number of workers in parrallel (default = number of CPU)",
+    )
+
     return parser.parse_args()
