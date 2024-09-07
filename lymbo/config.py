@@ -2,14 +2,9 @@ import argparse
 from enum import Enum
 from pathlib import Path
 
+from lymbo.item import GroupBy
+from lymbo.item import ReportFailure
 from lymbo.log import LogLevel
-
-
-class GroupBy(Enum):
-    NONE = "none"
-    MODULE = "module"
-    CLASS = "class"
-    FUNCTION = "function"
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,6 +16,7 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         type=Path,
         nargs="*",
+        default=[Path("test", Path("tests"))],
         help="Path(s) for test collection",
     )
 
@@ -35,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--groupby",
         type=GroupBy,
-        choices=list(GroupBy),
+        choices=GroupBy,
         default=GroupBy.NONE,
         help="Grouped tests are executed sequentialy.",
     )
@@ -47,11 +43,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--log-level",
         type=LogLevel,
-        choices=list(LogLevel),
-        default=LogLevel.WARNING.value,
+        choices=LogLevel,
+        default=LogLevel.WARNING,
         help="The log level",
     )
 
     parser.add_argument("--log", type=Path, help="Path to the log file.")
+
+    parser.add_argument(
+        "--report-failure",
+        type=ReportFailure,
+        choices=ReportFailure,
+        default=ReportFailure.NORMAL,
+        help="The log level",
+    )
 
     return parser.parse_args()

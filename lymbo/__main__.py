@@ -27,7 +27,8 @@ def lymbo_entry_point():
     test_plan = collect_tests(config.paths, config.groupby)
 
     if config.collect:
-        print(test_plan)
+        test_plan_to_print, _ = test_plan.test_plan(show_status=False)
+        print(test_plan.test_plan(test_plan_to_print))
 
     nb_tests, nb_groups = test_plan.count
     print(
@@ -35,6 +36,9 @@ def lymbo_entry_point():
     )
 
     if config.collect:
+        sys.exit(0)
+
+    if nb_tests == 0:
         sys.exit(5)
 
     _ = TestReport(config.report)
@@ -43,8 +47,26 @@ def lymbo_entry_point():
 
     duration = run_test_plan(test_plan)
 
-    print(f"==== tests executed in {duration} second{'s' if duration>1 else ''}")
+    print(f"\n==== tests executed in {duration} second{'s' if duration>1 else ''}")
 
+    print("==== results")
+    test_plan_to_print, tests_status = test_plan.test_plan(show_status=True)
+    print(test_plan_to_print)
+
+    print(
+        f"==== {''.join([(f'{nb} {status.value} ') for status, nb in tests_status.items() if nb > 0])} "
+    )
+
+    print("==== failures")
+
+    failures, nb_failures = test_plan.failures(report_failure=config.report_failure)
+    print(failures)
+
+    print("====")
+
+    if nb_failures > 0:
+        exit(1)    
 
 if __name__ == "__main__":
     lymbo_entry_point()
+    exit(0)

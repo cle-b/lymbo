@@ -104,7 +104,7 @@ def run_test(test_item: TestItem):
     cls = test_item.cls
     args, kwargs = test_item.parameters
 
-    print(f"{test_item} is running")
+    print(".", end="", flush=True)
 
     syspath = sys.path + [
         str(path.parent.absolute()),
@@ -124,11 +124,10 @@ def run_test(test_item: TestItem):
             test_item.start()
             test_function(*args, **kwargs)
             test_item.end()
-        except Exception as ex:
-            print("##########")
-            print(traceback.format_exc())
+            print("P", end="", flush=True)
+        except AssertionError as ex:
             test_item.end(reason=ex)
-
-    print(
-        f"{test_item} {test_item.status.value} in {test_item.duration:.3f} second{'s' if test_item.duration>1.0 else ''}"
-    )
+            print("B", end="", flush=True)
+        except Exception as ex:
+            test_item.end(reason=ex)
+            print("F", end="", flush=True)
