@@ -28,7 +28,7 @@ def lymbo_entry_point():
 
     if config.collect:
         test_plan_to_print, _ = test_plan.test_plan(show_status=False)
-        print(test_plan.test_plan(test_plan_to_print))
+        print(test_plan_to_print)
 
     nb_tests, nb_groups = test_plan.count
     print(
@@ -65,7 +65,8 @@ def lymbo_entry_point():
     print("====")
 
     if nb_failures > 0:
-        exit(1)    
+        exit(1)
+
 
 if __name__ == "__main__":
     lymbo_entry_point()

@@ -230,11 +230,11 @@ class TestItem:
 
         if reason:
 
-            for line in traceback.format_exception(
+            for lines in traceback.format_exception(
                 type(reason), reason, reason.__traceback__
             )[3:]:
-                for l in line.split("\n"):
-                    trcbck.append(l)
+                for line in lines.split("\n"):
+                    trcbck.append(line)
 
         return trcbck
 
@@ -285,7 +285,8 @@ class TestPlan:
                     test.refresh_from_report()
                     tests_status[test.status] += 1
                     repr += f" [{test.status.value.upper()}]"
-                    output.append(repr)
+                output.append(repr)
+
         return "\n".join(output), tests_status
 
     def failures(
