@@ -4,6 +4,7 @@ import sys
 import lymbo
 from lymbo.collect import collect_tests
 from lymbo.config import parse_args
+from lymbo.item import TestStatus
 from lymbo.log import set_env_for_logging
 from lymbo.report import TestReport
 from lymbo.run import run_test_plan
@@ -57,15 +58,16 @@ def lymbo_entry_point():
         f"==== {''.join([(f'{nb} {status.value} ') for status, nb in tests_status.items() if nb > 0])} "
     )
 
-    print("==== failures")
+    if (tests_status[TestStatus.BROKEN] > 0) or (tests_status[TestStatus.FAILED] > 0):
+        print("==== failures")
 
-    failures, nb_failures = test_plan.failures(report_failure=config.report_failure)
-    print(failures)
+        failures, nb_failures = test_plan.failures(report_failure=config.report_failure)
+        print(failures)
 
-    print("====")
+        print("====")
 
-    if nb_failures > 0:
-        exit(1)
+        if nb_failures > 0:
+            exit(1)
 
 
 if __name__ == "__main__":

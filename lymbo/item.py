@@ -20,7 +20,8 @@ from lymbo.env import LYMBO_REPORT_PATH
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
 from lymbo.env import LYMBO_TEST_SCOPE_MODULE
-from lymbo.env import LYMBO_TEST_SCOPE_SESSION
+from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
+from lymbo import color
 
 
 class TestStatus(Enum):
@@ -182,7 +183,7 @@ class TestItem:
     def scopes(self) -> dict:
         scopes = {
             LYMBO_TEST_SCOPE_MODULE: f"{self.path}",
-            LYMBO_TEST_SCOPE_SESSION: LYMBO_TEST_SCOPE_SESSION,
+            LYMBO_TEST_SCOPE_GLOBAL: LYMBO_TEST_SCOPE_GLOBAL,
         }
 
         if self.cls:
@@ -217,9 +218,9 @@ class TestItem:
 
             for i in range(start_line, end_line + 1):
                 flag = (
-                    "<====" if i == lineno - 1 else "  "
+                    "==> " if i == lineno - 1 else "    "
                 )  # to indicate where was the error
-                message.append(f"{i + 1}: {lines[i].rstrip()} {flag}")
+                message.append(f"{flag}{i + 1}: {lines[i].rstrip()}")
 
         return message
 
@@ -284,7 +285,15 @@ class TestPlan:
                 if show_status:
                     test.refresh_from_report()
                     tests_status[test.status] += 1
-                    repr += f" [{test.status.value.upper()}]"
+                    color_per_status = {
+                        TestStatus.PENDING: color.RESET,
+                        TestStatus.INPROGRESS: color.RESET,
+                        TestStatus.PASSED: color.GREEN,
+                        TestStatus.FAILED: color.RED,
+                        TestStatus.BROKEN: color.YELLOW,
+                        TestStatus.SKIPPED: color.RESET,
+                    }
+                    repr += f" [{color_per_status[test.status]}{test.status.value.upper()}{color.RESET}]"
                 output.append(repr)
 
         return "\n".join(output), tests_status
@@ -320,13 +329,13 @@ class TestPlan:
                     if report_failure in (ReportFailure.NORMAL, ReportFailure.FULL):
                         output.append(f"{padding}---------------------")
                         for line in test.error_message:
-                            not_empty_line = line.strip()
+                            not_empty_line = line.rstrip()
                             if not_empty_line:
                                 output.append(f"{padding}{not_empty_line}")
                     if report_failure == ReportFailure.FULL:
                         output.append(f"{padding}---------------------")
                         for line in test.traceback:
-                            not_empty_line = line.strip()
+                            not_empty_line = line.rstrip()
                             if not_empty_line:
                                 output.append(f"{padding}{not_empty_line}")
         return "\n".join(output), nb

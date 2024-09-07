@@ -8,7 +8,8 @@ import time
 import traceback
 from unittest.mock import patch
 
-from lymbo.env import LYMBO_TEST_SCOPE_SESSION
+from lymbo import color
+from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import trace_call
@@ -50,8 +51,8 @@ def run_test_plan(test_plan: TestPlan) -> int:
                 pass  # TODO log result
 
             # should already be 0 but we force this value because this is what stop the ressources manager processes
-            with scopes[LYMBO_TEST_SCOPE_SESSION]["lock"]:
-                scopes[LYMBO_TEST_SCOPE_SESSION]["count"] = 0
+            with scopes[LYMBO_TEST_SCOPE_GLOBAL]["lock"]:
+                scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] = 0
 
             # Wait for a maximum of 30 seconds for all ressource managers to complete
             try:
@@ -124,10 +125,10 @@ def run_test(test_item: TestItem):
             test_item.start()
             test_function(*args, **kwargs)
             test_item.end()
-            print("P", end="", flush=True)
+            print(f"{color.GREEN}P{color.RESET}", end="", flush=True)
         except AssertionError as ex:
             test_item.end(reason=ex)
-            print("B", end="", flush=True)
+            print(f"{color.RED}F{color.RESET}", end="", flush=True)
         except Exception as ex:
             test_item.end(reason=ex)
-            print("F", end="", flush=True)
+            print(f"{color.YELLOW}B{color.RESET}", end="", flush=True)
