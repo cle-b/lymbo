@@ -46,7 +46,7 @@ def lymbo_entry_point():
 
     print("==== running tests")
 
-    duration = run_test_plan(test_plan)
+    duration = run_test_plan(test_plan, config.workers)
 
     print(f"\n==== tests executed in {duration} second{'s' if duration>1 else ''}")
 

@@ -187,11 +187,11 @@ def manage_ressources(scopes):
 
                     try:
                         logger().debug(
-                            f"manage_ressources - instantiate a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{cm.gen.gi_frame.f_locals}]"
+                            f"manage_ressources - instantiate a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{args}{kwargs}]"
                         )
                         ressource = cm.__enter__()
                         logger().debug(
-                            f"manage_ressources - instantiate a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{cm.gen.gi_frame.f_locals}] done"
+                            f"manage_ressources - instantiate a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{args}{kwargs}] done"
                         )
                     except Exception as ex:
                         ressource = ex
@@ -213,7 +213,7 @@ def manage_ressources(scopes):
 
             except Exception as ex:
                 logger().debug(
-                    f"manage_ressources - exception during the instatiation of a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{cm.gen.gi_frame.f_locals}] Exception=[{ex}]"
+                    f"manage_ressources - exception during the instatiation of a ressource for {scope_id} -> ressource=[{cm.gen.__name__}] Exception=[{ex}]"
                 )
 
             # free ressouces
@@ -237,7 +237,7 @@ def teardown_ressources(scopes, ressources):
                 for ressource in ressources_by_scope:
                     try:
                         logger().debug(
-                            f"teardown_ressources - teardown ressource for {scope_id} -> ressource=[{ressource.gen.__name__}{ressource.gen.gi_frame.f_locals}]"
+                            f"teardown_ressources - teardown ressource for {scope_id} -> ressource=[{ressource.gen.__name__}]"
                         )
                         original_stdout = sys.stdout
                         original_stderr = sys.stderr
