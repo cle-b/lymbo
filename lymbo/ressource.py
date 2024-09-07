@@ -2,6 +2,7 @@ import contextlib
 from contextvars import ContextVar
 import importlib
 import inspect
+import io
 from multiprocessing import Queue
 from multiprocessing.managers import DictProxy
 from multiprocessing.managers import SyncManager
@@ -11,15 +12,16 @@ import pickle
 import queue
 import sys
 import time
+import traceback
 from unittest.mock import patch
 
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
-from lymbo.env import LYMBO_TEST_SCOPE_SESSION
+from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
 from lymbo.env import LYMBO_TEST_SCOPE_MODULE
-
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
+from lymbo.log import logger
 
 
 shared_scopes: ContextVar = ContextVar("shared_scopes")
@@ -43,6 +45,7 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
 
         if unique_cm_id not in scope["ressources"]:
             scope["ressources"][unique_cm_id] = None
+            scope["ressources_output"][unique_cm_id] = ""
 
             module_name = cm.__module__
             module = importlib.import_module(module_name)
@@ -65,40 +68,44 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
     while scope["ressources"][unique_cm_id] is None:
         time.sleep(0.2)  # TODO infinite loop risk
 
+    print(
+        scope["ressources_output"][unique_cm_id]
+    )  # by printing the output here, it will be added to the test output
+
     ressource = pickle.loads(scope["ressources"][unique_cm_id])
+
+    if isinstance(ressource, Exception):
+        raise ressource  # TODO report the original traceback
 
     yield ressource
 
 
-class LymboRessource:
+@contextlib.contextmanager
+def scope_global(cm, *args, **kwargs):
 
-    @staticmethod
-    @contextlib.contextmanager
-    def module(cm, *args, **kwargs):
+    with _cm_by_scope(LYMBO_TEST_SCOPE_GLOBAL, cm, *args, **kwargs) as ressource:
+        yield ressource
 
-        with _cm_by_scope(LYMBO_TEST_SCOPE_MODULE, cm, *args, **kwargs) as ressource:
-            yield ressource
 
-    @staticmethod
-    @contextlib.contextmanager
-    def cls(cm, *args, **kwargs):
+@contextlib.contextmanager
+def scope_module(cm, *args, **kwargs):
 
-        with _cm_by_scope(LYMBO_TEST_SCOPE_CLASS, cm, *args, **kwargs) as ressource:
-            yield ressource
+    with _cm_by_scope(LYMBO_TEST_SCOPE_MODULE, cm, *args, **kwargs) as ressource:
+        yield ressource
 
-    @staticmethod
-    @contextlib.contextmanager
-    def function(cm, *args, **kwargs):
 
-        with _cm_by_scope(LYMBO_TEST_SCOPE_FUNCTION, cm, *args, **kwargs) as ressource:
-            yield ressource
+@contextlib.contextmanager
+def scope_class(cm, *args, **kwargs):
 
-    @staticmethod
-    @contextlib.contextmanager
-    def session(cm, *args, **kwargs):
+    with _cm_by_scope(LYMBO_TEST_SCOPE_CLASS, cm, *args, **kwargs) as ressource:
+        yield ressource
 
-        with _cm_by_scope(LYMBO_TEST_SCOPE_SESSION, cm, *args, **kwargs) as ressource:
-            yield ressource
+
+@contextlib.contextmanager
+def scope_function(cm, *args, **kwargs):
+
+    with _cm_by_scope(LYMBO_TEST_SCOPE_FUNCTION, cm, *args, **kwargs) as ressource:
+        yield ressource
 
 
 def new_scope(manager: SyncManager) -> DictProxy:
@@ -107,6 +114,9 @@ def new_scope(manager: SyncManager) -> DictProxy:
     scope["count"] = 0  # number of possible occurrence for this scope
     scope["lock"] = manager.Lock()  # to update the "count" value
     scope["ressources"] = manager.dict()  # all the ressources created this scope
+    scope["ressources_output"] = (
+        manager.dict()
+    )  # all the ressources output created this scope
     return scope
 
 
@@ -135,7 +145,7 @@ def manage_ressources(scopes):
 
     ressources = {}
 
-    while scopes[LYMBO_TEST_SCOPE_SESSION]["count"] > 0:
+    while scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] > 0:
         time.sleep(0.2)
 
         # setup ressource
@@ -152,7 +162,8 @@ def manage_ressources(scopes):
                 name = message["ressource"]["name"]
                 args = message["ressource"]["args"]
                 kwargs = message["ressource"]["kwargs"]
-                scope = scopes[message["scope_id"]]
+                scope_id = message["scope_id"]
+                scope = scopes[scope_id]
 
                 syspath = sys.path + [
                     str(module_path.parent.absolute()),
@@ -160,24 +171,49 @@ def manage_ressources(scopes):
 
                 with patch.object(sys, "path", syspath):
 
+                    original_stdout = sys.stdout
+                    original_stderr = sys.stderr
+
+                    stdout = io.StringIO()
+                    sys.stdout = stdout
+                    sys.stderr = stdout
+
                     module = importlib.import_module(module_name)
 
                     ctxmgr = getattr(module, name)
 
                     cm = ctxmgr(*args, **kwargs)
 
+                    try:
+                        logger().debug(
+                            f"manage_ressources - instantiate a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{cm.gen.gi_frame.f_locals}]"
+                        )
+                        ressource = cm.__enter__()
+                        logger().debug(
+                            f"manage_ressources - instantiate a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{cm.gen.gi_frame.f_locals}] done"
+                        )
+                    except Exception as ex:
+                        ressource = ex
+
                     scope["ressources"][message["ressource"]["id"]] = pickle.dumps(
-                        cm.__enter__()
+                        ressource
                     )
+
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
+
+                    scope["ressources_output"][
+                        message["ressource"]["id"]
+                    ] = stdout.getvalue()
 
                     # we save the context manager to execute the teardown method when the scope count =0
-                    ressources[message["scope_id"]] = ressources.get(
-                        message["scope_id"], []
-                    )
-                    ressources[message["scope_id"]].append(cm)
+                    ressources[scope_id] = ressources.get(scope_id, [])
+                    ressources[scope_id].append(cm)
 
             except Exception as ex:
-                print(f"message get failed {ex}")
+                logger().debug(
+                    f"manage_ressources - exception during the instatiation of a ressource for {scope_id} -> ressource=[{cm.gen.__name__}{cm.gen.gi_frame.f_locals}] Exception=[{ex}]"
+                )
 
             # free ressouces
             teardown_ressources(scopes, ressources)
@@ -193,16 +229,45 @@ def teardown_ressources(scopes, ressources):
 
     released_scopes = []
 
-    for scope_id, ressources_by_scope in ressources.items():
-        if scopes[scope_id]["count"] == 0:
-            for ressource in ressources_by_scope:
-                ressource.__exit__(None, None, None)  # TODO pass execption if necessary
-            released_scopes.append(scope_id)
+    try:
 
-    released_scopes = set(released_scopes)
+        for scope_id, ressources_by_scope in ressources.items():
+            if scopes[scope_id]["count"] == 0:
+                for ressource in ressources_by_scope:
+                    try:
+                        logger().debug(
+                            f"teardown_ressources - teardown ressource for {scope_id} -> ressource=[{ressource.gen.__name__}{ressource.gen.gi_frame.f_locals}]"
+                        )
+                        original_stdout = sys.stdout
+                        original_stderr = sys.stderr
 
-    for scope_id in released_scopes:
-        del ressources[scope_id]
+                        stdout = io.StringIO()
+                        sys.stdout = stdout
+                        sys.stderr = stdout
+
+                        ressource.__exit__(
+                            None, None, None
+                        )  # TODO pass execption if necessary
+
+                        sys.stdout = original_stdout
+                        sys.stderr = original_stderr
+                    except Exception as ex:
+                        sys.stdout = original_stdout
+                        sys.stderr = original_stderr
+
+                        logger().warning(
+                            f"An exception occurred during the execution of the resource's teardown. stdout=[{stdout.getvalue()}], exception=[{ex}], traceback={traceback.format_exc()}"
+                        )
+                released_scopes.append(scope_id)
+
+        released_scopes = set(released_scopes)
+
+        for scope_id in released_scopes:
+            del ressources[scope_id]
+    except Exception as ex:
+        logger().debug(
+            f"teardown_ressources exception=[{ex}], traceback={traceback.format_exc()}"
+        )
 
 
 def unset_scope(scopes, test_item: TestItem):
@@ -211,10 +276,3 @@ def unset_scope(scopes, test_item: TestItem):
         scope = scopes[scope_id]
         with scope["lock"]:
             scope["count"] -= 1
-
-
-def print_scopes(scopes: DictProxy):
-    print("#" * 30)
-    for k, v in scopes.items():
-        print(f"{k} -> {v['count']}")
-    print("#" * 30)
