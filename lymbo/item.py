@@ -144,7 +144,7 @@ class TestItem:
                 self.status = TestStatus(test_desc["status"])
                 self.start_at = test_desc["start_at"]
                 self.end_at = test_desc["end_at"]
-                self.output = test_desc["output"].encode()
+                self.output = io.StringIO(test_desc["output"])
                 self.reason = test_desc["error"]["reason"]
                 self.error_message = test_desc["error"]["error_message"]
                 self.traceback = test_desc["error"]["traceback"]
@@ -302,7 +302,15 @@ class TestPlan:
                 if test.status in (TestStatus.BROKEN, TestStatus.FAILED):
                     nb += 1
                     padding = "  "
-                    output.append(f"{test}")
+                    output.append(str(test))
+                    test_output = [line for line in test.output.getvalue().split("\n")]
+                    if test_output and not test_output[-1].strip():
+                        del test_output[-1]
+                    if test_output:
+                        output.append(" - - - - output:")
+                        for line in test_output:
+                            output.append(f"{padding}{line}")
+                    output.append(" - - - - reason:")
                     if report_failure in (
                         ReportFailure.SIMPLE,
                         ReportFailure.NORMAL,
