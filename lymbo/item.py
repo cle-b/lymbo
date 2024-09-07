@@ -215,7 +215,7 @@ class TestItem:
             start_line = max(0, lineno - 3)
             end_line = min(lineno + 1, len(lines) - 1)
 
-            for i in range(start_line, end_line):
+            for i in range(start_line, end_line + 1):
                 flag = (
                     "<====" if i == lineno - 1 else "  "
                 )  # to indicate where was the error
