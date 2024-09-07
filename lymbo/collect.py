@@ -11,10 +11,12 @@ from lymbo.config import GroupBy
 from lymbo.env import LYMBO_TEST_COLLECTION
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
+from lymbo.log import trace_call
 
 from lymbo.cm import args
 
 
+@trace_call
 def list_python_files(paths: list[Path]) -> list[Path]:
     """Walk into all directories and subdirectories to list the Python files."""
     tests_files = []
@@ -32,6 +34,7 @@ def list_python_files(paths: list[Path]) -> list[Path]:
     return list(set(tests_files))
 
 
+@trace_call
 def list_tests_from_file(path: Path, group_by: GroupBy) -> list[list[TestItem]]:
     """List all the tests defined in a file."""
 
@@ -134,6 +137,7 @@ def parse_body(
     return collected_tests
 
 
+@trace_call
 def collect_tests(paths: list[Path], group_by: GroupBy) -> TestPlan:
     """Collect all the functions/methods decorated with @lymbo.test."""
 
@@ -147,7 +151,9 @@ def collect_tests(paths: list[Path], group_by: GroupBy) -> TestPlan:
 
     del os.environ[LYMBO_TEST_COLLECTION]
 
-    return TestPlan(tests)
+    test_plan = TestPlan(tests, group_by)
+
+    return test_plan
 
 
 def eval_ast_call(call_node, global_vars, local_vars):

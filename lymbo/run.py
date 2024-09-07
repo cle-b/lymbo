@@ -11,12 +11,14 @@ from unittest.mock import patch
 from lymbo.env import LYMBO_TEST_SCOPE_SESSION
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
+from lymbo.log import trace_call
 from lymbo.ressource import unset_scope
 from lymbo.ressource import manage_ressources
 from lymbo.ressource import prepare_scopes
 from lymbo.ressource import set_scopes
 
 
+@trace_call
 def run_test_plan(test_plan: TestPlan) -> int:
 
     # TODO add a try first to execute long test first
@@ -94,6 +96,7 @@ def run_tests(tests: list[TestItem], scopes: DictProxy):
         print("ERROR RUN_TESTS " + str(ex))
 
 
+@trace_call
 def run_test(test_item: TestItem):
 
     path = test_item.path

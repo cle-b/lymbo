@@ -15,6 +15,7 @@ from typing import Optional
 from typing import Union
 
 import lymbo
+from lymbo.config import GroupBy
 from lymbo.env import LYMBO_REPORT_PATH
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
@@ -83,6 +84,9 @@ class TestItem:
 
         return s
 
+    def __repr__(self) -> str:
+        return f"{self.uuid}%{self}"
+
     def to_json(self):
         return {
             "lymbo": lymbo.__version__,
@@ -148,6 +152,7 @@ class TestItem:
 @dataclass
 class TestPlan:
     groups: list[list[TestItem]]
+    group_by: GroupBy
 
     def __iter__(self) -> Iterator[list[TestItem]]:
         for group in self.groups:
@@ -163,3 +168,21 @@ class TestPlan:
             nb_tests += len(group)
 
         return nb_tests, nb_groups
+
+    def __str__(self) -> str:
+        output: list[str] = []
+        nb_tests = 0
+        for tests in self.groups:
+            if len(tests) > 1:
+                group_msg = f"+ {len(tests)} tests grouped by "
+                if self.group_by == GroupBy.MODULE:
+                    group_msg += f"{tests[0].path}"
+                if self.group_by == GroupBy.CLASS:
+                    group_msg += f"{tests[0].path}::{tests[0].cls}"
+                if self.group_by == GroupBy.FUNCTION:
+                    group_msg += f"{tests[0].path}::{tests[0].cls}::{tests[0].fnc}"
+                output.append(group_msg)
+            for test in tests:
+                nb_tests += 1
+                output.append(f"{'  | -' if len(tests)>1 else '-'} {test}")
+        return "\n".join(output)

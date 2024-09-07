@@ -4,14 +4,16 @@ import sys
 import lymbo
 from lymbo.collect import collect_tests
 from lymbo.config import parse_args
+from lymbo.log import set_env_for_logging
 from lymbo.report import TestReport
 from lymbo.run import run_test_plan
-from lymbo.ui import show_test_plan
 
 
 def lymbo_entry_point():
 
     config = parse_args()
+
+    set_env_for_logging(config.log_level, config.log)
 
     if config.version:
         print(lymbo.__version__)
@@ -25,7 +27,7 @@ def lymbo_entry_point():
     test_plan = collect_tests(config.paths, config.groupby)
 
     if config.collect:
-        print("\n".join(show_test_plan(test_plan, config.groupby)))
+        print(test_plan)
 
     nb_tests, nb_groups = test_plan.count
     print(
