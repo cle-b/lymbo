@@ -68,9 +68,10 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
     while scope["ressources"][unique_cm_id] is None:
         time.sleep(0.2)  # TODO infinite loop risk
 
-    print(
-        scope["ressources_output"][unique_cm_id]
-    )  # by printing the output here, it will be added to the test output
+    if scope["ressources_output"][unique_cm_id]:
+        print(
+            scope["ressources_output"][unique_cm_id]
+        )  # by printing the output here, it will be added to the test output
 
     ressource = pickle.loads(scope["ressources"][unique_cm_id])
 
