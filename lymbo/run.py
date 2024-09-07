@@ -73,6 +73,7 @@ def run_test_plan(test_plan: TestPlan) -> int:
 
     return duration
 
+
 def run_tests(tests: list[TestItem], scopes: DictProxy):
     """Run a group of tests sequentially."""
 

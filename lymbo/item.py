@@ -83,7 +83,7 @@ class TestItem:
         s += ")"
 
         return s
-    
+
     def __repr__(self) -> str:
         return f"{self.uuid}%{self}"
 
@@ -169,7 +169,7 @@ class TestPlan:
 
         return nb_tests, nb_groups
 
-    def __str__(self) -> list[str]:
+    def __str__(self) -> str:
         output: list[str] = []
         nb_tests = 0
         for tests in self.groups:

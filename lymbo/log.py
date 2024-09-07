@@ -4,7 +4,6 @@ import logging
 import os
 from pathlib import Path
 from typing import Union
-import sys
 
 from lymbo.env import LYMBO_LOG_LEVEL
 from lymbo.env import LYMBO_LOG_PATH
@@ -35,6 +34,7 @@ def set_env_for_logging(log_level: LogLevel, path: Union[Path, None]):
     if path:
         os.environ[LYMBO_LOG_PATH] = str(path)
 
+
 @cache
 def logger() -> logging.Logger:
 
@@ -60,19 +60,19 @@ def logger() -> logging.Logger:
 
 
 def trace_call(fnc):
-    
+
     def wrapper(*args, **kwargs):
 
         log_level = int(os.environ.get(LYMBO_LOG_LEVEL, logging.WARNING))
 
         if log_level == logging.DEBUG:
             logger().debug(f"{fnc.__name__} | begin args={args} kwargs={kwargs}")
-        
+
         r = fnc(*args, **kwargs)
 
         if log_level == logging.DEBUG:
             logger().debug(f"{fnc.__name__} |end r={r}")
 
         return r
-    
-    return wrapper    
+
+    return wrapper

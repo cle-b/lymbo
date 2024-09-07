@@ -11,10 +11,10 @@ from lymbo.config import GroupBy
 from lymbo.env import LYMBO_TEST_COLLECTION
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
-from lymbo.log import logger
 from lymbo.log import trace_call
 
 from lymbo.cm import args
+
 
 @trace_call
 def list_python_files(paths: list[Path]) -> list[Path]:
@@ -32,6 +32,7 @@ def list_python_files(paths: list[Path]) -> list[Path]:
                         ]
                     )
     return list(set(tests_files))
+
 
 @trace_call
 def list_tests_from_file(path: Path, group_by: GroupBy) -> list[list[TestItem]]:
@@ -69,6 +70,7 @@ def list_tests_from_file(path: Path, group_by: GroupBy) -> list[list[TestItem]]:
             collected_tests += tests
 
     return collected_tests
+
 
 def parse_body(
     group_by: GroupBy,
@@ -133,6 +135,7 @@ def parse_body(
                 collected_tests.extend(tests)  # type: ignore[arg-type]
 
     return collected_tests
+
 
 @trace_call
 def collect_tests(paths: list[Path], group_by: GroupBy) -> TestPlan:
