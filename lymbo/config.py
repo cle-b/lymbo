@@ -2,6 +2,8 @@ import argparse
 from enum import Enum
 from pathlib import Path
 
+from lymbo.log import LogLevel
+
 
 class GroupBy(Enum):
     NONE = "none"
@@ -41,5 +43,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report", type=Path, help="Save the report in that directory."
     )
+
+    parser.add_argument(
+        "--log-level",
+        type=LogLevel,
+        choices=list(LogLevel),
+        default=LogLevel.WARNING.value,
+        help="The log level",
+    )
+
+    parser.add_argument("--log", type=Path, help="Path to the log file.")
 
     return parser.parse_args()
