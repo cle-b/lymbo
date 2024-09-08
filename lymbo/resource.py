@@ -133,7 +133,7 @@ def scope_class(cm, *args, **kwargs):
             "You can't share a resource in another shared resource."
         )
 
-    if os.environ[LYMBO_TEST_SCOPE_MAX] in ("function"):
+    if os.environ[LYMBO_TEST_SCOPE_MAX] == "function":
         raise LymboExceptionScopeHierarchy(
             f"You can't share a resource with the scope [class] under a shared resource with the scope [{os.environ[LYMBO_TEST_SCOPE_MAX]}]"
         )
