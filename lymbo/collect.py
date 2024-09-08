@@ -21,10 +21,10 @@ def list_python_files(paths: list[Path]) -> list[Path]:
     """Walk into all directories and subdirectories to list the Python files."""
     tests_files = []
     for path in paths:
-        if path.is_file() and str(path.name).endswith(".py"):
+        if path.is_file() and path.name.endswith(".py"):
             tests_files.append(path)
         elif path.is_dir():
-            if not str(path).startswith("__"):
+            if not path.name.startswith("__"):
                 for p in glob.glob(f"{path}/**"):
                     tests_files += list_python_files(
                         [
