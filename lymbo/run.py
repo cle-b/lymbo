@@ -15,10 +15,10 @@ from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import logger
 from lymbo.log import trace_call
-from lymbo.ressource import unset_scope
-from lymbo.ressource import manage_ressources
-from lymbo.ressource import prepare_scopes
-from lymbo.ressource import set_scopes
+from lymbo.resource import unset_scope
+from lymbo.resource import manage_resources
+from lymbo.resource import prepare_scopes
+from lymbo.resource import set_scopes
 
 
 @trace_call
@@ -34,8 +34,8 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
         scopes = prepare_scopes(test_plan, manager)
 
         run_tests_with_scopes = functools.partial(run_tests, scopes=scopes)
-        manage_ressources_with_scopes = functools.partial(
-            manage_ressources, scopes=scopes
+        manage_resources_with_scopes = functools.partial(
+            manage_resources, scopes=scopes
         )
 
         if max_workers is None:
@@ -45,11 +45,11 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
 
         with concurrent.futures.ProcessPoolExecutor(
             max_workers=max_workers
-        ) as ressources_manager:
+        ) as resources_manager:
 
-            # # Start the ressources manager processes
-            ressources_manager_futures = [
-                ressources_manager.submit(manage_ressources_with_scopes)
+            # # Start the resources manager processes
+            resources_manager_futures = [
+                resources_manager.submit(manage_resources_with_scopes)
                 for _ in range(max_workers if max_workers else 4)
             ]
 
@@ -61,31 +61,31 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             for r in execresult:
                 pass  # TODO log result
 
-            # should already be 0 but we force this value because this is what stop the ressources manager processes
+            # should already be 0 but we force this value because this is what stop the resources manager processes
             with scopes[LYMBO_TEST_SCOPE_GLOBAL]["lock"]:
                 scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] = 0
 
-            # Wait for a maximum of 30 seconds for all ressource managers to complete
+            # Wait for a maximum of 30 seconds for all resource managers to complete
             try:
                 for future in concurrent.futures.as_completed(
-                    ressources_manager_futures, timeout=30
+                    resources_manager_futures, timeout=30
                 ):
                     try:
                         _ = future.result()  # TODO log result
                     except concurrent.futures.TimeoutError:
                         logger().debug(
-                            "run_test_plan - A ressource manager process timed out while waiting for completion."
+                            "run_test_plan - A resource manager process timed out while waiting for completion."
                         )
                     except Exception as e:
                         logger().debug(
-                            f"run_test_plan - An error occurred while waiting the ressource manager processes. exception=[{e}]"
+                            f"run_test_plan - An error occurred while waiting the resource manager processes. exception=[{e}]"
                         )
             except concurrent.futures.TimeoutError:
                 logger().debug(
-                    "run_test_plan - Not all ressource manager processes completed within 30 seconds."
+                    "run_test_plan - Not all resource manager processes completed within 30 seconds."
                 )
 
-        # TODO ensure all the processes have been stopped and the ressources released.
+        # TODO ensure all the processes have been stopped and the resources released.
 
     duration = int(time.time() - tstart)
 

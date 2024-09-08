@@ -19,6 +19,7 @@ import lymbo
 from lymbo.env import LYMBO_REPORT_PATH
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
+from lymbo.env import LYMBO_TEST_SCOPE_MAX
 from lymbo.env import LYMBO_TEST_SCOPE_MODULE
 from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
 from lymbo import color
@@ -184,6 +185,7 @@ class TestItem:
         scopes = {
             LYMBO_TEST_SCOPE_MODULE: f"{self.path}",
             LYMBO_TEST_SCOPE_GLOBAL: LYMBO_TEST_SCOPE_GLOBAL,
+            LYMBO_TEST_SCOPE_MAX: "global",
         }
 
         if self.cls:
@@ -191,6 +193,7 @@ class TestItem:
             scopes[LYMBO_TEST_SCOPE_FUNCTION] = f"{self.path}::{self.cls}::{self.fnc}"
         else:
             scopes[LYMBO_TEST_SCOPE_FUNCTION] = f"{self.path}::{self.fnc}"
+            scopes[LYMBO_TEST_SCOPE_CLASS] = scopes[LYMBO_TEST_SCOPE_FUNCTION]
 
         return scopes
 
