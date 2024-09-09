@@ -230,7 +230,12 @@ def dynamic_import_modules(imports: list[tuple[str, str]]) -> dict[str, str]:
         module_name, _, attr_name = full_name.rpartition(".")
         if module_name:  # This handles `from module import name`
             module = importlib.import_module(module_name)
-            global_vars[alias] = getattr(module, attr_name)
+            try:
+                # Try to get the attribute from the module
+                global_vars[alias] = getattr(module, attr_name)
+            except AttributeError:
+                # If it's not an attribute, treat it as a submodule and import it
+                global_vars[alias] = importlib.import_module(full_name)
         else:  # This handles `import module`
             global_vars[alias] = importlib.import_module(full_name)
 
