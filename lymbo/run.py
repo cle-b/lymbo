@@ -19,7 +19,7 @@ from lymbo.resource import unset_scope
 from lymbo.resource import manage_resources
 from lymbo.resource import prepare_scopes
 from lymbo.resource import set_scopes
-
+from lymbo.resource import global_queue
 
 @trace_call
 def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int:
@@ -65,6 +65,10 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             with scopes[LYMBO_TEST_SCOPE_GLOBAL]["lock"]:
                 scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] = 0
 
+            global global_queue
+            for _ in range(max_workers if max_workers else 4):
+                global_queue.put({"stop": True})
+
             # Wait for a maximum of 30 seconds for all resource managers to complete
             try:
                 for future in concurrent.futures.as_completed(
@@ -105,10 +109,10 @@ def run_tests(tests: list[TestItem], scopes: DictProxy):
                     os.environ,
                     test_item.scopes,
                 ):
-                    run_test(test_item)
-                    unset_scope(scopes, test_item)
+                    run_test(test_item)                    
             except Exception as ex:
                 print("ERROR RUN_F " + str(ex) + "\n" + traceback.format_exc())
+            unset_scope(scopes, test_item)                
 
     except Exception as ex:
         print("ERROR RUN_TESTS " + str(ex))
