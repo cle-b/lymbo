@@ -53,7 +53,7 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             # # Start the resources manager processes
             resources_manager_futures = [
                 resources_manager.submit(manage_resources_with_scopes)
-                for _ in range(max_workers if max_workers else 4)
+                for _ in range(max_workers)
             ]
 
             with concurrent.futures.ProcessPoolExecutor(
