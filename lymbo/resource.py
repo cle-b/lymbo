@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import importlib
 import inspect
 import io
@@ -28,6 +29,7 @@ from lymbo.log import logger
 
 
 shared_scopes: Union[DictProxy, None] = None
+local_resources = {}
 global_queue: Queue = Queue()
 
 
@@ -42,44 +44,51 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
     global shared_scopes
     scopes = shared_scopes
     global global_queue
+    global local_resources
 
     unique_cm_id = f"{cm.__module__}.{cm.__name__}.{args}.{kwargs}"
 
-    scope = scopes[os.environ[scope_name]]
-    with scope["lock"]:  # the lock is only for the request about the resource creation
+    if unique_cm_id in local_resources:
+        resource = local_resources[unique_cm_id]  # TODO free memory when unused
+    else:
+        scope = scopes[os.environ[scope_name]]
+        with scope["lock"]:  # the lock is only for the request about the resource creation
 
-        if unique_cm_id not in scope["resources"]:
-            scope["resources"][unique_cm_id] = None
-            scope["resources_output"][unique_cm_id] = ""
+            if unique_cm_id not in scope["resources"]:
+                scope["resources"][unique_cm_id] = None
+                scope["resources_output"][unique_cm_id] = ""
 
-            module_name = cm.__module__
-            module = importlib.import_module(module_name)
-            module_path = inspect.getfile(module)
+                module_name = cm.__module__
+                module = importlib.import_module(module_name)
+                module_path = inspect.getfile(module)
 
-            global_queue.put(
-                {
-                    "scope_id": os.environ.get(scope_name),
-                    "resource": {
-                        "id": unique_cm_id,
-                        "module_name": module_name,
-                        "module_path": module_path,
-                        "name": cm.__name__,
-                        "args": args,
-                        "kwargs": kwargs,
-                        "environ": os.environ.copy(),
-                    },
-                }
-            )
+                global_queue.put(
+                    {
+                        "stop": False,
+                        "scope_id": os.environ.get(scope_name),
+                        "resource": {
+                            "id": unique_cm_id,
+                            "module_name": module_name,
+                            "module_path": module_path,
+                            "name": cm.__name__,
+                            "args": args,
+                            "kwargs": kwargs,
+                            "environ": os.environ.copy(),
+                        },
+                    }
+                )
 
-    while scope["resources"][unique_cm_id] is None:
-        time.sleep(0.2)  # TODO infinite loop risk
+        while scope["resources"][unique_cm_id] is None:
+            time.sleep(0.1)  # TODO infinite loop risk
 
-    if scope["resources_output"][unique_cm_id]:
-        print(
-            scope["resources_output"][unique_cm_id]
-        )  # by printing the output here, it will be added to the test output
+        if scope["resources_output"][unique_cm_id]:
+            print(
+                scope["resources_output"][unique_cm_id]
+            )  # by printing the output here, it will be added to the test output
 
-    resource = pickle.loads(scope["resources"][unique_cm_id])
+        resource = pickle.loads(scope["resources"][unique_cm_id])
+
+        local_resources[unique_cm_id] = resource
 
     if isinstance(resource, Exception):
         raise resource  # TODO report the original traceback
@@ -196,89 +205,83 @@ def manage_resources(scopes):
     resources = {}
 
     while scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] > 0:
-        time.sleep(0.2)
+
+        message = global_queue.get()
+        
+        if message["stop"]:
+            break # all the tests have been executed
 
         # setup resource
-        while not global_queue.empty():
+        try:
+            module_name = message["resource"]["module_name"]
+            module_path = Path(message["resource"]["module_path"])
+            name = message["resource"]["name"]
+            args = message["resource"]["args"]
+            kwargs = message["resource"]["kwargs"]
+            environ = message["resource"]["environ"]
+            scope_id = message["scope_id"]
+            scope = scopes[scope_id]
 
-            try:
-                message = global_queue.get(block=False)
-            except queue.Empty:
-                continue
+            syspath = sys.path + [
+                str(module_path.parent.absolute()),
+            ]
 
-            try:
-                module_name = message["resource"]["module_name"]
-                module_path = Path(message["resource"]["module_path"])
-                name = message["resource"]["name"]
-                args = message["resource"]["args"]
-                kwargs = message["resource"]["kwargs"]
-                environ = message["resource"]["environ"]
-                scope_id = message["scope_id"]
-                scope = scopes[scope_id]
+            if LYMBO_TEST_SCOPE_MAX in environ:
+                del environ[
+                    LYMBO_TEST_SCOPE_MAX
+                ]  # to detect if we try to create a shared resource from another shared resource
 
-                syspath = sys.path + [
-                    str(module_path.parent.absolute()),
-                ]
+            with (
+                patch.object(sys, "path", syspath),
+                patch.dict(os.environ, environ),
+            ):
 
-                if LYMBO_TEST_SCOPE_MAX in environ:
-                    del environ[
-                        LYMBO_TEST_SCOPE_MAX
-                    ]  # to detect if we try to create a shared resource from another shared resource
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
 
-                with (
-                    patch.object(sys, "path", syspath),
-                    patch.dict(os.environ, environ),
-                ):
+                stdout = io.StringIO()
+                sys.stdout = stdout
+                sys.stderr = stdout
 
-                    original_stdout = sys.stdout
-                    original_stderr = sys.stderr
+                module = importlib.import_module(module_name)
 
-                    stdout = io.StringIO()
-                    sys.stdout = stdout
-                    sys.stderr = stdout
+                ctxmgr = getattr(module, name)
 
-                    module = importlib.import_module(module_name)
+                cm = ctxmgr(*args, **kwargs)
 
-                    ctxmgr = getattr(module, name)
-
-                    cm = ctxmgr(*args, **kwargs)
-
-                    try:
-                        logger().debug(
-                            f"manage_resources - instantiate a resource for {scope_id} -> "
-                            f"resource=[{module_name}.{name}({args}{kwargs})]"
-                        )
-                        resource = cm.__enter__()
-                        logger().debug(
-                            f"manage_resources - instantiate a resource for {scope_id} -> "
-                            f"resource=[{module_name}.{name}({args}{kwargs}] done"
-                        )
-                    except Exception as ex:
-                        resource = ex
-
-                    scope["resources"][message["resource"]["id"]] = pickle.dumps(
-                        resource
+                try:
+                    logger().debug(
+                        f"manage_resources - instantiate a resource for {scope_id} -> "
+                        f"resource=[{module_name}.{name}({args}{kwargs})]"
                     )
+                    resource = cm.__enter__()
+                    logger().debug(
+                        f"manage_resources - instantiate a resource for {scope_id} -> "
+                        f"resource=[{module_name}.{name}({args}{kwargs}] done"
+                    )
+                except Exception as ex:
+                    resource = ex
 
-                    sys.stdout = original_stdout
-                    sys.stderr = original_stderr
-
-                    scope["resources_output"][
-                        message["resource"]["id"]
-                    ] = stdout.getvalue()
-
-                    # we save the context manager to execute the teardown method when the scope count =0
-                    resources[scope_id] = resources.get(scope_id, [])
-                    resources[scope_id].append(cm)
-
-            except Exception as ex:
-                logger().debug(
-                    f"manage_resources - exception during the instatiation of a resource for {scope_id} -> "
-                    f"resource=[{module_name}.{name}({args}{kwargs}] Exception=[{ex}]"
+                scope["resources"][message["resource"]["id"]] = pickle.dumps(
+                    resource
                 )
 
-            # free ressouces
-            teardown_resources(scopes, resources)
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+
+                scope["resources_output"][
+                    message["resource"]["id"]
+                ] = stdout.getvalue()
+
+                # we save the context manager to execute the teardown method when the scope count =0
+                resources[scope_id] = resources.get(scope_id, [])
+                resources[scope_id].append(cm)
+
+        except Exception as ex:
+            logger().debug(
+                f"manage_resources - exception during the instatiation of a resource for {scope_id} -> "
+                f"resource=[{module_name}.{name}({args}{kwargs}] Exception=[{ex}]"
+            )
 
         # free ressouces
         teardown_resources(scopes, resources)
