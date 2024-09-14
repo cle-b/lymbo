@@ -1,5 +1,4 @@
 import contextlib
-import copy
 import importlib
 import inspect
 import io
@@ -9,7 +8,6 @@ from multiprocessing.managers import SyncManager
 import os
 from pathlib import Path
 import pickle
-import queue
 import sys
 import time
 import traceback
@@ -29,7 +27,7 @@ from lymbo.log import logger
 
 
 shared_scopes: Union[DictProxy, None] = None
-local_resources = {}
+local_resources: dict[str, object] = {}
 global_queue: Queue = Queue()
 
 
@@ -52,7 +50,9 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
         resource = local_resources[unique_cm_id]  # TODO free memory when unused
     else:
         scope = scopes[os.environ[scope_name]]
-        with scope["lock"]:  # the lock is only for the request about the resource creation
+        with scope[
+            "lock"
+        ]:  # the lock is only for the request about the resource creation
 
             if unique_cm_id not in scope["resources"]:
                 scope["resources"][unique_cm_id] = None
@@ -207,9 +207,9 @@ def manage_resources(scopes):
     while scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] > 0:
 
         message = global_queue.get()
-        
+
         if message["stop"]:
-            break # all the tests have been executed
+            break  # all the tests have been executed
 
         # setup resource
         try:
@@ -262,16 +262,12 @@ def manage_resources(scopes):
                 except Exception as ex:
                     resource = ex
 
-                scope["resources"][message["resource"]["id"]] = pickle.dumps(
-                    resource
-                )
+                scope["resources"][message["resource"]["id"]] = pickle.dumps(resource)
 
                 sys.stdout = original_stdout
                 sys.stderr = original_stderr
 
-                scope["resources_output"][
-                    message["resource"]["id"]
-                ] = stdout.getvalue()
+                scope["resources_output"][message["resource"]["id"]] = stdout.getvalue()
 
                 # we save the context manager to execute the teardown method when the scope count =0
                 resources[scope_id] = resources.get(scope_id, [])
@@ -283,10 +279,10 @@ def manage_resources(scopes):
                 f"resource=[{module_name}.{name}({args}{kwargs}] Exception=[{ex}]"
             )
 
-        # free ressouces
+        # free resources
         teardown_resources(scopes, resources)
 
-    # free ressouces
+    # free resources
     teardown_resources(scopes, resources)
 
 

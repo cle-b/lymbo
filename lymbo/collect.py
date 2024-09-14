@@ -83,7 +83,7 @@ def parse_body(
     """Parse the body a module/class to find test."""
     collected_tests = []
     for item in body:
-        if isinstance(item, ast.FunctionDef):
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for decorator in item.decorator_list:
                 if isinstance(decorator, ast.Call):
                     if isinstance(decorator.func, ast.Attribute):
@@ -112,6 +112,7 @@ def parse_body(
                                         [
                                             TestItem(
                                                 path,
+                                                isinstance(item, ast.AsyncFunctionDef),
                                                 item.name,
                                                 f_args,
                                                 classdef.name if classdef else None,

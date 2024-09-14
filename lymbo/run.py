@@ -1,3 +1,4 @@
+import asyncio
 import concurrent.futures
 import functools
 from multiprocessing import Manager
@@ -15,14 +16,16 @@ from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import logger
 from lymbo.log import trace_call
-from lymbo.resource import unset_scope
+from lymbo.resource import global_queue  # noqa: F401
 from lymbo.resource import manage_resources
 from lymbo.resource import prepare_scopes
 from lymbo.resource import set_scopes
-from lymbo.resource import global_queue
+from lymbo.resource import unset_scope
+
 
 @trace_call
 def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int:
+    global global_queue
 
     # TODO add a try first to execute long test first
     # TODO shuffle the tests
@@ -50,7 +53,7 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             # # Start the resources manager processes
             resources_manager_futures = [
                 resources_manager.submit(manage_resources_with_scopes)
-                for _ in range(max_workers if max_workers else 4)
+                for _ in range(max_workers)
             ]
 
             with concurrent.futures.ProcessPoolExecutor(
@@ -65,7 +68,6 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             with scopes[LYMBO_TEST_SCOPE_GLOBAL]["lock"]:
                 scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] = 0
 
-            global global_queue
             for _ in range(max_workers if max_workers else 4):
                 global_queue.put({"stop": True})
 
@@ -109,10 +111,10 @@ def run_tests(tests: list[TestItem], scopes: DictProxy):
                     os.environ,
                     test_item.scopes,
                 ):
-                    run_test(test_item)                    
+                    run_test(test_item)
             except Exception as ex:
                 print("ERROR RUN_F " + str(ex) + "\n" + traceback.format_exc())
-            unset_scope(scopes, test_item)                
+            unset_scope(scopes, test_item)
 
     except Exception as ex:
         print("ERROR RUN_TESTS " + str(ex))
@@ -122,6 +124,7 @@ def run_tests(tests: list[TestItem], scopes: DictProxy):
 def run_test(test_item: TestItem):
 
     path = test_item.path
+    asynchronous = test_item.asynchronous
     name = test_item.fnc
     cls = test_item.cls
     args, kwargs = test_item.parameters
@@ -144,7 +147,10 @@ def run_test(test_item: TestItem):
 
         try:
             test_item.start()
-            test_function(*args, **kwargs)
+            if asynchronous:
+                asyncio.run(test_function(*args, **kwargs))
+            else:
+                test_function(*args, **kwargs)
             test_item.end()
             print(f"{color.GREEN}P{color.RESET}", end="", flush=True)
         except AssertionError as ex:
