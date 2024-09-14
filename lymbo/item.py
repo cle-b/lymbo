@@ -54,11 +54,13 @@ class TestItem:
     def __init__(
         self,
         path: Path,
+        asynchronous: bool,
         fnc: str,
         parameters: tuple[tuple[Any], dict[str, Any]],
         cls: Optional[str],
     ):
         self.path = path
+        self.asynchronous = asynchronous
         self.fnc = fnc
         self.parameters = parameters
         self.cls = cls
