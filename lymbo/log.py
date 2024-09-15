@@ -66,12 +66,18 @@ def trace_call(fnc):
         log_level = int(os.environ.get(LYMBO_LOG_LEVEL, logging.WARNING))
 
         if log_level == logging.DEBUG:
-            logger().debug(f"{fnc.__name__} | begin args={args} kwargs={kwargs}")
+            try:
+                logger().debug(f"{fnc.__name__} | begin args={args} kwargs={kwargs}")
+            except Exception as ex:
+                logger().debug(f"trace_call - exception - [{ex}]")
 
         r = fnc(*args, **kwargs)
 
         if log_level == logging.DEBUG:
-            logger().debug(f"{fnc.__name__} |end r={r}")
+            try:
+                logger().debug(f"{fnc.__name__} |end r={r}")
+            except Exception as ex:
+                logger().debug(f"trace_call - exception - [{ex}]")
 
         return r
 

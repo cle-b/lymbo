@@ -199,33 +199,41 @@ class TestItem:
 
         return scopes
 
-    @staticmethod
-    def __error_message(reason) -> List[str]:
+    def __error_message(self, reason) -> List[str]:
 
         message = []
 
+        first_line_test = 3 if self.asynchronous else 2
+
         if reason:
             tb = traceback.extract_tb(reason.__traceback__)
+            
+            if len(tb) > first_line_test:                
+                # We get the line in the test where the exception has been raised
+                filename, lineno, funcname, text = tb[first_line_test]
 
-            # We get the line in the test where the exception has been raised
-            filename, lineno, funcname, text = tb[2]
+                message.append(
+                    f"{type(reason).__name__} in {filename}, line {lineno}, in {funcname}:"
+                )
 
-            message.append(
-                f"{type(reason).__name__} in {filename}, line {lineno}, in {funcname}:"
-            )
+                # To have a better context, we retrieve 2 lines before the error, and 1 line after
+                with open(filename, "r") as f:
+                    lines = f.readlines()
 
-            # To have a better context, we retrieve 2 lines before the error, and 1 line after
-            with open(filename, "r") as f:
-                lines = f.readlines()
+                start_line = max(0, lineno - 3)
+                end_line = min(lineno + 1, len(lines) - 1)
 
-            start_line = max(0, lineno - 3)
-            end_line = min(lineno + 1, len(lines) - 1)
+                for i in range(start_line, end_line + 1):
+                    flag = (
+                        "==> " if i == lineno - 1 else "    "
+                    )  # to indicate where was the error
+                    message.append(f"{flag}{i + 1}: {lines[i].rstrip()}")
+            else:
+                # the exception occured before the execution of the test
+                message.append(
+                    f"The test has not been executed - [{type(reason).__name__}: {str(reason)}]"
+                )                
 
-            for i in range(start_line, end_line + 1):
-                flag = (
-                    "==> " if i == lineno - 1 else "    "
-                )  # to indicate where was the error
-                message.append(f"{flag}{i + 1}: {lines[i].rstrip()}")
 
         return message
 
