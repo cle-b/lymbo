@@ -16,11 +16,11 @@ from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import logger
 from lymbo.log import trace_call
-from lymbo.resource import global_queue  # noqa: F401
-from lymbo.resource import manage_resources
-from lymbo.resource import prepare_scopes
-from lymbo.resource import set_scopes
-from lymbo.resource import unset_scope
+from lymbo.resource_manager import global_queue  # noqa: F401
+from lymbo.resource_manager import manage_resources
+from lymbo.resource_manager import prepare_scopes
+from lymbo.resource_manager import set_scopes
+from lymbo.resource_manager import unset_scope
 
 
 @trace_call
@@ -43,6 +43,8 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
 
         if max_workers is None:
             max_workers = os.cpu_count()
+            if max_workers is None:
+                max_workers = 1
 
         logger().debug(f"run_test_plan - max_workers={max_workers}")
 

@@ -13,7 +13,7 @@ def args(*args, **kwargs):
     """
     Define the parameters used to call the test function.
 
-    If a parameter is defined using the `lymbo.cm.params` function,
+    If a parameter is defined using the `lymbo.expand` function,
     the resulting list is flattened before being passed to the test function.
     """
 
@@ -55,5 +55,5 @@ class ArgParams:
         self.args = list(*args)
 
 
-def params(*args) -> ArgParams:
+def expand(*args) -> ArgParams:
     return ArgParams(args)
