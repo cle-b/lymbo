@@ -207,8 +207,8 @@ class TestItem:
 
         if reason:
             tb = traceback.extract_tb(reason.__traceback__)
-            
-            if len(tb) > first_line_test:                
+
+            if len(tb) > first_line_test:
                 # We get the line in the test where the exception has been raised
                 filename, lineno, funcname, text = tb[first_line_test]
 
@@ -232,8 +232,7 @@ class TestItem:
                 # the exception occured before the execution of the test
                 message.append(
                     f"The test has not been executed - [{type(reason).__name__}: {str(reason)}]"
-                )                
-
+                )
 
         return message
 
