@@ -46,6 +46,11 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/lymbo
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing 
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
@@ -66,9 +71,4 @@ jobs:
         path: dist/
     - name: Publish package on Pypi
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-      environment:
-        name: pypi
-        url: https://pypi.org/p/lymbo
-      permissions:
-        id-token: write  # IMPORTANT: mandatory for trusted publishing
-      uses: pypa/gh-action-pypi-publish@release/v1     
+     uses: pypa/gh-action-pypi-publish@release/v1     
