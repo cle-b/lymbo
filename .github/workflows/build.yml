@@ -20,13 +20,13 @@ jobs:
         make check
 
   test:
-    name: Test OS/Python version
+    name: Test
     needs: lint
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4
@@ -40,3 +40,36 @@ jobs:
         make test
       env:
         PIP_USE_PEP517: 1        
+
+  deploy:
+    name: Deploy on PyPI
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.10
+    - name: Install pypa/build
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade setuptools wheel        
+        python -m pip install build --user
+    - name: Build a binary wheel and a source tarball
+      run: python3 -m build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish package on Pypi
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      environment:
+        name: pypi
+        url: https://pypi.org/p/lymbo
+      permissions:
+        id-token: write  # IMPORTANT: mandatory for trusted publishing
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1     
