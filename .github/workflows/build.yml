@@ -71,5 +71,4 @@ jobs:
         url: https://pypi.org/p/lymbo
       permissions:
         id-token: write  # IMPORTANT: mandatory for trusted publishing
-    - name: Publish distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1     
