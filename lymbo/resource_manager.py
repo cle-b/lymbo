@@ -27,7 +27,6 @@ from lymbo.log import logger
 
 
 shared_scopes: Union[DictProxy, None] = None
-local_resources: dict[str, object] = {}
 global_queue: Queue = Queue()
 
 
@@ -42,41 +41,35 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
     global shared_scopes
     scopes = shared_scopes
     global global_queue
-    global local_resources
 
     unique_cm_id = f"{cm.__module__}.{cm.__name__}.{args}.{kwargs}"
 
-    if unique_cm_id in local_resources:
-        resource = local_resources[unique_cm_id]  # TODO free memory when unused
-    else:
-        scope = scopes[os.environ[scope_name]]
-        with scope[
-            "lock"
-        ]:  # the lock is only for the request about the resource creation
+    scope = scopes[os.environ[scope_name]]
+    with scope["lock"]:  # the lock is only for the request about the resource creation
 
-            if unique_cm_id not in scope["resources"]:
-                scope["resources"][unique_cm_id] = None
-                scope["resources_output"][unique_cm_id] = ""
+        if unique_cm_id not in scope["resources"]:
+            scope["resources"][unique_cm_id] = None
+            scope["resources_output"][unique_cm_id] = ""
 
-                module_name = cm.__module__
-                module = importlib.import_module(module_name)
-                module_path = inspect.getfile(module)
+            module_name = cm.__module__
+            module = importlib.import_module(module_name)
+            module_path = inspect.getfile(module)
 
-                global_queue.put(
-                    {
-                        "stop": False,
-                        "scope_id": os.environ.get(scope_name),
-                        "resource": {
-                            "id": unique_cm_id,
-                            "module_name": module_name,
-                            "module_path": module_path,
-                            "name": cm.__name__,
-                            "args": args,
-                            "kwargs": kwargs,
-                            "environ": os.environ.copy(),
-                        },
-                    }
-                )
+            global_queue.put(
+                {
+                    "stop": False,
+                    "scope_id": os.environ.get(scope_name),
+                    "resource": {
+                        "id": unique_cm_id,
+                        "module_name": module_name,
+                        "module_path": module_path,
+                        "name": cm.__name__,
+                        "args": args,
+                        "kwargs": kwargs,
+                        "environ": os.environ.copy(),
+                    },
+                }
+            )
 
         while scope["resources"][unique_cm_id] is None:
             time.sleep(0.1)  # TODO infinite loop risk
@@ -87,8 +80,6 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
             )  # by printing the output here, it will be added to the test output
 
         resource = pickle.loads(scope["resources"][unique_cm_id])
-
-        local_resources[unique_cm_id] = resource
 
     if isinstance(resource, Exception):
         raise resource  # TODO report the original traceback
