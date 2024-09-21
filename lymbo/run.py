@@ -73,10 +73,10 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             for _ in range(max_workers if max_workers else 4):
                 global_queue.put({"stop": True})
 
-            # Wait for a maximum of 30 seconds for all resource managers to complete
+            # Wait for all resource managers to complete
             try:
                 for future in concurrent.futures.as_completed(
-                    resources_manager_futures, timeout=30
+                    resources_manager_futures
                 ):
                     try:
                         _ = future.result()  # TODO log result
