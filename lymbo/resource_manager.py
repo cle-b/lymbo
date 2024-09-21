@@ -8,6 +8,7 @@ from multiprocessing.managers import SyncManager
 import os
 from pathlib import Path
 import pickle
+import queue
 import sys
 import time
 import traceback
@@ -55,7 +56,7 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
             module = importlib.import_module(module_name)
             module_path = inspect.getfile(module)
 
-            global_queue.put(
+            global_queue.put_nowait(
                 {
                     "stop": False,
                     "scope_id": os.environ.get(scope_name),
@@ -197,7 +198,10 @@ def manage_resources(scopes):
 
     while scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] > 0:
 
-        message = global_queue.get()
+        try:
+            message = global_queue.get(timeout=5)
+        except queue.Empty:
+            continue
 
         if message["stop"]:
             break  # all the tests have been executed

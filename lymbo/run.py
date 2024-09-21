@@ -63,23 +63,26 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
             ) as tests_executor:
                 execresult = tests_executor.map(run_tests_with_scopes, test_plan)
 
-            for r in execresult:
-                pass  # TODO log result
+            for worker_result in execresult:
+                logger().debug(f"run_test_plan - worker result: [{worker_result}]")
 
             # should already be 0 but we force this value because this is what stop the resources manager processes
             with scopes[LYMBO_TEST_SCOPE_GLOBAL]["lock"]:
                 scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] = 0
 
             for _ in range(max_workers if max_workers else 4):
-                global_queue.put({"stop": True})
+                global_queue.put_nowait({"stop": True})
 
-            # Wait for all resource managers to complete
+            # Wait for a maximum of 30 seconds for all resource managers to complete
             try:
                 for future in concurrent.futures.as_completed(
-                    resources_manager_futures
+                    resources_manager_futures, timeout=30
                 ):
                     try:
-                        _ = future.result()  # TODO log result
+                        resource_manager_result = future.result()
+                        logger().debug(
+                            f"run_test_plan - resource manager result: [{resource_manager_result}]"
+                        )
                     except concurrent.futures.TimeoutError:
                         logger().debug(
                             "run_test_plan - A resource manager process timed out while waiting for completion."

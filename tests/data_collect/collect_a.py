@@ -14,9 +14,9 @@ def second_test():
 class test_class:
 
     @lymbo.test()
-    def test_in_class_1():
+    def test_in_class_1(self):
         pass
 
     @lymbo.test()
-    def test_in_class_2():
+    def test_in_class_2(self):
         pass

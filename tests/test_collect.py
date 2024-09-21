@@ -5,7 +5,7 @@ import unittest
 from lymbo.collect import collect_tests
 from lymbo.item import GroupBy
 
-dir = os.path.dirname(os.path.abspath(__file__))
+dir = os.path.dirname(os.path.abspath("."))
 
 
 class TestCollect(unittest.TestCase):

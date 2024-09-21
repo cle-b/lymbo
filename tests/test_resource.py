@@ -8,7 +8,7 @@ from lymbo.item import GroupBy
 from lymbo.run import run_test_plan
 from lymbo.report import TestReport
 
-dir = os.path.dirname(os.path.abspath(__file__))
+dir = os.path.dirname(os.path.abspath("."))
 
 
 class TestResource(unittest.TestCase):
