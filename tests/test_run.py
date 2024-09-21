@@ -9,7 +9,7 @@ from lymbo.item import TestStatus
 from lymbo.run import run_test_plan
 from lymbo.report import TestReport
 
-dir = os.path.dirname(os.path.abspath("."))
+dir = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestRunTestPlan(unittest.TestCase):
