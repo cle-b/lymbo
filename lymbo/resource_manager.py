@@ -2,18 +2,19 @@ import contextlib
 import importlib
 import inspect
 import io
-from multiprocessing import Queue
 from multiprocessing.managers import DictProxy
 from multiprocessing.managers import SyncManager
 import os
 from pathlib import Path
 import pickle
+import queue
 import sys
 import time
 import traceback
 from typing import Union
 from unittest.mock import patch
 
+import lymbo
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
 from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
@@ -27,7 +28,6 @@ from lymbo.log import logger
 
 
 shared_scopes: Union[DictProxy, None] = None
-global_queue: Queue = Queue()
 
 
 def set_scopes(scopes):
@@ -40,7 +40,6 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
 
     global shared_scopes
     scopes = shared_scopes
-    global global_queue
 
     unique_cm_id = f"{cm.__module__}.{cm.__name__}.{args}.{kwargs}"
 
@@ -55,7 +54,7 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
             module = importlib.import_module(module_name)
             module_path = inspect.getfile(module)
 
-            global_queue.put(
+            lymbo._shared_queue.put(
                 {
                     "stop": False,
                     "scope_id": os.environ.get(scope_name),
@@ -189,15 +188,13 @@ def prepare_scopes(test_plan: TestPlan, manager: SyncManager) -> DictProxy:
     return scopes
 
 
-def manage_resources(scopes):
+def manage_resources(scopes, shared_queue: queue.Queue):
 
-    global global_queue
-
-    resources = {}
+    resources: dict = {}
 
     while scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] > 0:
 
-        message = global_queue.get()
+        message = shared_queue.get()
 
         if message["stop"]:
             break  # all the tests have been executed

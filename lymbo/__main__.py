@@ -1,3 +1,4 @@
+import multiprocessing
 import platform
 import sys
 
@@ -11,6 +12,8 @@ from lymbo.run import run_test_plan
 
 
 def lymbo_entry_point():
+
+    multiprocessing.set_start_method("spawn", force=True)
 
     config = parse_args()
 

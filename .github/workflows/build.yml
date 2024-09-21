@@ -23,10 +23,10 @@ jobs:
     name: Test
     needs: lint
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 3
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4

@@ -1,7 +1,8 @@
 import asyncio
 import concurrent.futures
 import functools
-from multiprocessing import Manager
+import queue
+import multiprocessing
 from multiprocessing.managers import DictProxy
 import os
 import sys
@@ -10,13 +11,13 @@ import traceback
 from typing import Optional
 from unittest.mock import patch
 
+import lymbo
 from lymbo import color
 from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import logger
 from lymbo.log import trace_call
-from lymbo.resource_manager import global_queue  # noqa: F401
 from lymbo.resource_manager import manage_resources
 from lymbo.resource_manager import prepare_scopes
 from lymbo.resource_manager import set_scopes
@@ -25,20 +26,23 @@ from lymbo.resource_manager import unset_scope
 
 @trace_call
 def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int:
-    global global_queue
 
     # TODO add a try first to execute long test first
     # TODO shuffle the tests
 
     tstart = time.time()
 
-    with Manager() as manager:
+    with multiprocessing.Manager() as manager:
+
+        shared_queue: queue.Queue = manager.Queue()
 
         scopes = prepare_scopes(test_plan, manager)
 
-        run_tests_with_scopes = functools.partial(run_tests, scopes=scopes)
-        manage_resources_with_scopes = functools.partial(
-            manage_resources, scopes=scopes
+        run_tests_with_scopes_and_shared_queue = functools.partial(
+            run_tests, scopes=scopes, shared_queue=shared_queue
+        )
+        manage_resources_with_scopes_and_shared_queue = functools.partial(
+            manage_resources, scopes=scopes, shared_queue=shared_queue
         )
 
         if max_workers is None:
@@ -54,14 +58,16 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
 
             # # Start the resources manager processes
             resources_manager_futures = [
-                resources_manager.submit(manage_resources_with_scopes)
+                resources_manager.submit(manage_resources_with_scopes_and_shared_queue)
                 for _ in range(max_workers)
             ]
 
             with concurrent.futures.ProcessPoolExecutor(
                 max_workers=max_workers
             ) as tests_executor:
-                execresult = tests_executor.map(run_tests_with_scopes, test_plan)
+                execresult = tests_executor.map(
+                    run_tests_with_scopes_and_shared_queue, test_plan
+                )
 
             for r in execresult:
                 pass  # TODO log result
@@ -71,7 +77,7 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
                 scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] = 0
 
             for _ in range(max_workers if max_workers else 4):
-                global_queue.put({"stop": True})
+                shared_queue.put({"stop": True})
 
             # Wait for a maximum of 30 seconds for all resource managers to complete
             try:
@@ -100,8 +106,10 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
     return duration
 
 
-def run_tests(tests: list[TestItem], scopes: DictProxy):
+def run_tests(tests: list[TestItem], scopes: DictProxy, shared_queue: queue.Queue):
     """Run a group of tests sequentially."""
+
+    lymbo._shared_queue = shared_queue  # type: ignore[attr-defined]
 
     try:
         set_scopes(scopes)
