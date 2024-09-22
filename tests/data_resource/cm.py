@@ -13,4 +13,3 @@ def resource_cm():
 def resource_nested_class():
     with scope_class(resource_cm) as value:
         yield value
-

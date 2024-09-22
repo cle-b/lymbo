@@ -11,10 +11,14 @@ from cm import resource_nested_class
 @lymbo.test()
 def scope_nested_hierarchy():
     with scope_global(resource_cm):
-        with scope_module(resource_cm):
-            with scope_class(resource_cm):
-                with scope_function(resource_cm):
-                    print("ok", end="")
+        with scope_global(resource_cm):
+            with scope_module(resource_cm):
+                with scope_module(resource_cm):
+                    with scope_class(resource_cm):
+                        with scope_class(resource_cm):
+                            with scope_function(resource_cm):
+                                with scope_function(resource_cm):
+                                    print("ok", end="")
 
 
 @lymbo.test()
@@ -77,11 +81,10 @@ class Nested:
     def scope_nested_shared_resource_2(self):
 
         with scope_class(resource_cm) as value:
-            print('{"scope": "nested", "value": "' + str(value) + '"}')            
-
+            print('{"scope": "nested", "value": "' + str(value) + '"}')
 
     @lymbo.test()
     def scope_nested_shared_resource_3(self):
 
         with resource_nested_class() as value:
-            print('{"scope": "nested", "value": "' + str(value) + '"}')            
+            print('{"scope": "nested", "value": "' + str(value) + '"}')
