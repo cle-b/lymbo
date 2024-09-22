@@ -265,11 +265,6 @@ def setup_resource(
         str(Path(module_path).parent.absolute()),
     ]
 
-    # if LYMBO_TEST_SCOPE_MAX in environ:
-    #     del environ[
-    #         LYMBO_TEST_SCOPE_MAX
-    #     ]  # to detect if we try to create a shared resource from another shared resource
-
     with (
         patch.object(sys, "path", syspath),
         patch.dict(os.environ, environ),
