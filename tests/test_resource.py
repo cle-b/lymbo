@@ -104,6 +104,29 @@ class TestResource(unittest.TestCase):
                 self.assertEqual(test.status, TestStatus.BROKEN)
                 self.assertIn("You can't share a resource with the scope", test.reason)
 
+    def test_resource_nested(self):
+
+        test_plan = collect_tests(
+            [Path(os.path.join(dir, "data_resource/resource_nested.py"))],
+            GroupBy.NONE,
+            "scope_nested_shared_resource",
+        )
+
+        _ = TestReport()
+
+        run_test_plan(test_plan)
+
+        resources = {}
+
+        for group in test_plan:
+            for test in group:
+                test.refresh_from_report()
+                resource = json.loads(test.output.getvalue())
+                resources[resource["scope"]] = resources.get(resource["scope"], [])
+                resources[resource["scope"]].append(resource["value"])
+
+        self.assert_same_resource(resources, "nested", 3)
+
 
 if __name__ == "__main__":
     unittest.main()
