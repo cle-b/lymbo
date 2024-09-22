@@ -6,7 +6,7 @@ from lymbo.resource_manager import scope_function
 from lymbo.resource_manager import scope_global
 from lymbo.resource_manager import scope_module
 
-__version__ = "0.0.2"
+__version__ = "0.1.0"
 
 __all__ = [
     "args",
