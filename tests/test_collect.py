@@ -119,6 +119,7 @@ class TestCollect(unittest.TestCase):
             "abc/def/ijk.py::func4": "def",
             "abc/def/ijk.py::func5": "abc and def",
             "abc/def/ijk.py::func6": "abc and def and not ABC",
+            "abc/def/ijk.py::func7": "rrrandrr or ijk",
         }
 
         for item, filter in params.items():

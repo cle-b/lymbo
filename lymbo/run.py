@@ -20,7 +20,6 @@ from lymbo.log import logger
 from lymbo.log import trace_call
 from lymbo.resource_manager import manage_resources
 from lymbo.resource_manager import prepare_scopes
-from lymbo.resource_manager import set_scopes
 from lymbo.resource_manager import unset_scope
 
 
@@ -112,10 +111,11 @@ def run_test_plan(test_plan: TestPlan, max_workers: Optional[int] = None) -> int
 def run_tests(tests: list[TestItem], scopes: DictProxy, shared_queue: queue.Queue):
     """Run a group of tests sequentially."""
 
-    lymbo._shared_queue = shared_queue  # type: ignore[attr-defined]
+    # this is a worker
+    lymbo._shared_queue = shared_queue
+    lymbo._shared_scopes = scopes
 
     try:
-        set_scopes(scopes)
 
         for test_item in tests:
 
