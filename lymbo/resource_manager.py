@@ -11,73 +11,99 @@ import queue
 import sys
 import time
 import traceback
-from typing import Union
+from typing import Any
+from typing import List
 from unittest.mock import patch
 
 import lymbo
+from lymbo.env import LYMBO_RESOURCE_MANAGER
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
 from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
 from lymbo.env import LYMBO_TEST_SCOPE_MAX
 from lymbo.env import LYMBO_TEST_SCOPE_MODULE
 from lymbo.exception import LymboExceptionScopeHierarchy
-from lymbo.exception import LymboExceptionScopeNested
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import logger
 
 
-shared_scopes: Union[DictProxy, None] = None
-
-
-def set_scopes(scopes):
-    global shared_scopes
-    shared_scopes = scopes
-
-
 @contextlib.contextmanager
 def _cm_by_scope(scope_name, cm, *args, **kwargs):
 
-    global shared_scopes
-    scopes = shared_scopes
-
     unique_cm_id = f"{cm.__module__}.{cm.__name__}.{args}.{kwargs}"
 
-    scope = scopes[os.environ[scope_name]]
-    with scope["lock"]:  # the lock is only for the request about the resource creation
+    scope = lymbo._shared_scopes[os.environ[scope_name]]
+
+    resource = None
+    is_new_resource = False
+
+    with scope["lock"]:  # the lock is only to flag the resource creation
 
         if unique_cm_id not in scope["resources"]:
-            scope["resources"][unique_cm_id] = None
+
+            is_new_resource = True
+
+            scope["resources"][unique_cm_id] = None  # resource setup in progress
             scope["resources_output"][unique_cm_id] = ""
 
             module_name = cm.__module__
             module = importlib.import_module(module_name)
             module_path = inspect.getfile(module)
+            environ = os.environ.copy()
+            name = cm.__name__
+            resource_id = unique_cm_id
+            scope_id = os.environ.get(scope_name)
 
+    if is_new_resource:
+
+        if LYMBO_RESOURCE_MANAGER in os.environ:
+            # it's a resource manager, create resource
+
+            resource = setup_resource(
+                module_name,
+                module_path,
+                environ,
+                name,
+                args,
+                kwargs,
+                lymbo._local_resources,
+                resource_id,
+                scope,
+                scope_id,
+            )
+
+        else:
+            # it's a worker, sent message to create resource
             lymbo._shared_queue.put(
                 {
                     "stop": False,
-                    "scope_id": os.environ.get(scope_name),
+                    "scope_id": scope_id,
                     "resource": {
-                        "id": unique_cm_id,
+                        "id": resource_id,
                         "module_name": module_name,
                         "module_path": module_path,
-                        "name": cm.__name__,
+                        "name": name,
                         "args": args,
                         "kwargs": kwargs,
-                        "environ": os.environ.copy(),
+                        "environ": environ,
                     },
                 }
             )
 
-        while scope["resources"][unique_cm_id] is None:
-            time.sleep(0.1)  # TODO infinite loop risk
+    while (
+        scope["resources"][unique_cm_id] is None
+    ):  # wait until the resource is created
+        time.sleep(0.1)  # TODO infinite loop risk
 
-        if scope["resources_output"][unique_cm_id]:
-            print(
-                scope["resources_output"][unique_cm_id]
-            )  # by printing the output here, it will be added to the test output
+    if scope["resources_output"][unique_cm_id]:
+        print(
+            scope["resources_output"][unique_cm_id]
+        )  # by printing the output here, it will be added to the test output
 
+    if (
+        resource is None
+    ):  # no need to unpickle the resource if created in this process just now
         resource = pickle.loads(scope["resources"][unique_cm_id])
 
     if isinstance(resource, Exception):
@@ -88,11 +114,6 @@ def _cm_by_scope(scope_name, cm, *args, **kwargs):
 
 @contextlib.contextmanager
 def scope_global(cm, *args, **kwargs):
-
-    if LYMBO_TEST_SCOPE_MAX not in os.environ:
-        raise LymboExceptionScopeNested(
-            "You can't share a resource in another shared resource."
-        )
 
     if os.environ[LYMBO_TEST_SCOPE_MAX] in ("module", "class", "function"):
         raise LymboExceptionScopeHierarchy(
@@ -108,11 +129,6 @@ def scope_global(cm, *args, **kwargs):
 @contextlib.contextmanager
 def scope_module(cm, *args, **kwargs):
 
-    if LYMBO_TEST_SCOPE_MAX not in os.environ:
-        raise LymboExceptionScopeNested(
-            "You can't share a resource in another shared resource."
-        )
-
     if os.environ[LYMBO_TEST_SCOPE_MAX] in ("class", "function"):
         raise LymboExceptionScopeHierarchy(
             f"You can't share a resource with the scope [module] under a shared resource with the scope [{os.environ[LYMBO_TEST_SCOPE_MAX]}]"
@@ -127,11 +143,6 @@ def scope_module(cm, *args, **kwargs):
 @contextlib.contextmanager
 def scope_class(cm, *args, **kwargs):
 
-    if LYMBO_TEST_SCOPE_MAX not in os.environ:
-        raise LymboExceptionScopeNested(
-            "You can't share a resource in another shared resource."
-        )
-
     if os.environ[LYMBO_TEST_SCOPE_MAX] == "function":
         raise LymboExceptionScopeHierarchy(
             f"You can't share a resource with the scope [class] under a shared resource with the scope [{os.environ[LYMBO_TEST_SCOPE_MAX]}]"
@@ -145,11 +156,6 @@ def scope_class(cm, *args, **kwargs):
 
 @contextlib.contextmanager
 def scope_function(cm, *args, **kwargs):
-
-    if LYMBO_TEST_SCOPE_MAX not in os.environ:
-        raise LymboExceptionScopeNested(
-            "You can't share a resource in another shared resource."
-        )
 
     with patch.dict(os.environ, {LYMBO_TEST_SCOPE_MAX: "function"}):
 
@@ -190,7 +196,12 @@ def prepare_scopes(test_plan: TestPlan, manager: SyncManager) -> DictProxy:
 
 def manage_resources(scopes, shared_queue: queue.Queue):
 
-    resources: dict = {}
+    # this is a resource manager
+    os.environ[LYMBO_RESOURCE_MANAGER] = "1"
+    lymbo._shared_queue = shared_queue
+    lymbo._shared_scopes = scopes
+
+    lymbo._local_resources = {}
 
     while scopes[LYMBO_TEST_SCOPE_GLOBAL]["count"] > 0:
 
@@ -202,64 +213,27 @@ def manage_resources(scopes, shared_queue: queue.Queue):
         # setup resource
         try:
             module_name = message["resource"]["module_name"]
-            module_path = Path(message["resource"]["module_path"])
+            module_path = message["resource"]["module_path"]
             name = message["resource"]["name"]
             args = message["resource"]["args"]
             kwargs = message["resource"]["kwargs"]
             environ = message["resource"]["environ"]
+            resource_id = message["resource"]["id"]
             scope_id = message["scope_id"]
             scope = scopes[scope_id]
 
-            syspath = sys.path + [
-                str(module_path.parent.absolute()),
-            ]
-
-            if LYMBO_TEST_SCOPE_MAX in environ:
-                del environ[
-                    LYMBO_TEST_SCOPE_MAX
-                ]  # to detect if we try to create a shared resource from another shared resource
-
-            with (
-                patch.object(sys, "path", syspath),
-                patch.dict(os.environ, environ),
-            ):
-
-                original_stdout = sys.stdout
-                original_stderr = sys.stderr
-
-                stdout = io.StringIO()
-                sys.stdout = stdout
-                sys.stderr = stdout
-
-                module = importlib.import_module(module_name)
-
-                ctxmgr = getattr(module, name)
-
-                cm = ctxmgr(*args, **kwargs)
-
-                try:
-                    logger().debug(
-                        f"manage_resources - instantiate a resource for {scope_id} -> "
-                        f"resource=[{module_name}.{name}({args}{kwargs})]"
-                    )
-                    resource = cm.__enter__()
-                    logger().debug(
-                        f"manage_resources - instantiate a resource for {scope_id} -> "
-                        f"resource=[{module_name}.{name}({args}{kwargs}] done"
-                    )
-                except Exception as ex:
-                    resource = ex
-
-                scope["resources"][message["resource"]["id"]] = pickle.dumps(resource)
-
-                sys.stdout = original_stdout
-                sys.stderr = original_stderr
-
-                scope["resources_output"][message["resource"]["id"]] = stdout.getvalue()
-
-                # we save the context manager to execute the teardown method when the scope count =0
-                resources[scope_id] = resources.get(scope_id, [])
-                resources[scope_id].append(cm)
+            setup_resource(
+                module_name,
+                module_path,
+                environ,
+                name,
+                args,
+                kwargs,
+                lymbo._local_resources,
+                resource_id,
+                scope,
+                scope_id,
+            )
 
         except Exception as ex:
             logger().debug(
@@ -268,10 +242,77 @@ def manage_resources(scopes, shared_queue: queue.Queue):
             )
 
         # free resources
-        teardown_resources(scopes, resources)
+        teardown_resources(scopes, lymbo._local_resources)
 
     # free resources
-    teardown_resources(scopes, resources)
+    teardown_resources(scopes, lymbo._local_resources)
+
+
+def setup_resource(
+    module_name: str,
+    module_path: str,
+    environ: List[str],
+    name: str,
+    args,
+    kwargs,
+    resources: dict,
+    resource_id: str,
+    scope: DictProxy,
+    scope_id: str,
+) -> Any:
+
+    syspath = sys.path + [
+        str(Path(module_path).parent.absolute()),
+    ]
+
+    # if LYMBO_TEST_SCOPE_MAX in environ:
+    #     del environ[
+    #         LYMBO_TEST_SCOPE_MAX
+    #     ]  # to detect if we try to create a shared resource from another shared resource
+
+    with (
+        patch.object(sys, "path", syspath),
+        patch.dict(os.environ, environ),
+    ):
+
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+
+        stdout = io.StringIO()
+        sys.stdout = stdout
+        sys.stderr = stdout
+
+        module = importlib.import_module(module_name)
+
+        ctxmgr = getattr(module, name)
+
+        cm = ctxmgr(*args, **kwargs)
+
+        try:
+            logger().debug(
+                f"manage_resources - instantiate a resource for {scope_id} -> "
+                f"resource=[{module_name}.{name}({args}{kwargs})]"
+            )
+            resource = cm.__enter__()
+            logger().debug(
+                f"manage_resources - instantiate a resource for {scope_id} -> "
+                f"resource=[{module_name}.{name}({args}{kwargs}] done"
+            )
+        except Exception as ex:
+            resource = ex
+
+        scope["resources"][resource_id] = pickle.dumps(resource)
+
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+        scope["resources_output"][resource_id] = stdout.getvalue()
+
+        # we save the context manager to execute the teardown method when the scope count =0
+        resources[scope_id] = resources.get(scope_id, [])
+        resources[scope_id].append(cm)
+
+        return resource
 
 
 def teardown_resources(scopes, resources):

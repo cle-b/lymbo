@@ -276,7 +276,8 @@ def extract_words_from_filter(filter: str) -> list[str]:
     """
 
     # remove the stop words
-    stop_words = ["(", ")", "and", "or", "not"]
+    stop_words = ["(", ")", " and ", " or ", " not ", "(not "]
+    filter = " " + filter
     for stop_word in stop_words:
         filter = filter.replace(stop_word, " ")
 
@@ -295,14 +296,15 @@ def match_filter(item: str, filter: str) -> bool:
 
     # We sort the list of words to first replace the longer words to have partial
     # replacement if for example we have these two words: abc and abcdef.
+    new_filter = filter
     for word in sorted(words, key=len, reverse=True):
-        filter = filter.replace(word, str(words[word]))
+        new_filter = new_filter.replace(word, str(words[word]))
 
     try:
-        match = eval(filter)
+        match = eval(new_filter)
     except Exception as ex:
         raise LymboExceptionFilter(
-            f'The filter ["{filter}"] is broken. exception=[{str(ex)}]'
+            f'The filter ["{filter}"] is broken. new filter=[{new_filter}] words=[{words}] exception=[{str(ex)}]'
         )
 
     return match

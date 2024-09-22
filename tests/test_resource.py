@@ -5,6 +5,7 @@ import unittest
 
 from lymbo.collect import collect_tests
 from lymbo.item import GroupBy
+from lymbo.item import TestStatus
 from lymbo.run import run_test_plan
 from lymbo.report import TestReport
 
@@ -20,7 +21,11 @@ class TestResource(unittest.TestCase):
     def test_resource(self):
 
         test_plan = collect_tests(
-            [Path(os.path.join(dir, "data_resource/"))], GroupBy.NONE
+            [
+                Path(os.path.join(dir, "data_resource/resource_a.py")),
+                Path(os.path.join(dir, "data_resource/resource_b.py")),
+            ],
+            GroupBy.NONE,
         )
 
         _ = TestReport()
@@ -62,6 +67,42 @@ class TestResource(unittest.TestCase):
         with self.subTest("use context manager with scope global"):
             # all the resources under the same scope are identical
             self.assert_same_resource(resources, "global", 10)
+
+    def test_resource_hierarchy(self):
+
+        test_plan = collect_tests(
+            [Path(os.path.join(dir, "data_resource/resource_nested.py"))],
+            GroupBy.NONE,
+            "scope_nested_hierarchy",
+        )
+
+        _ = TestReport()
+
+        run_test_plan(test_plan)
+
+        for group in test_plan:
+            for test in group:
+                test.refresh_from_report()
+                output = test.output.getvalue()
+                self.assertEqual(output, "ok")
+
+    def test_resource_forbidden(self):
+
+        test_plan = collect_tests(
+            [Path(os.path.join(dir, "data_resource/resource_nested.py"))],
+            GroupBy.NONE,
+            "scope_nested_forbidden",
+        )
+
+        _ = TestReport()
+
+        run_test_plan(test_plan)
+
+        for group in test_plan:
+            for test in group:
+                test.refresh_from_report()
+                self.assertEqual(test.status, TestStatus.BROKEN)
+                self.assertIn("You can't share a resource with the scope", test.reason)
 
 
 if __name__ == "__main__":
