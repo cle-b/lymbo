@@ -9,11 +9,53 @@ from unittest.mock import patch
 
 from lymbo.config import GroupBy
 from lymbo.env import LYMBO_TEST_COLLECTION
+from lymbo.exception import LymboExceptionFilter
 from lymbo.item import TestItem
 from lymbo.item import TestPlan
 from lymbo.log import trace_call
+from lymbo.log import logger
+
 
 from lymbo.cm import args
+
+
+@trace_call
+def collect_tests(
+    paths: list[Path], group_by: GroupBy, filter_by_path: str = ""
+) -> TestPlan:
+    """Collect all the functions/methods decorated with @lymbo.test."""
+
+    tests = []
+    filtered_tests = []
+
+    os.environ[LYMBO_TEST_COLLECTION] = "1"
+
+    for path in list_python_files(paths):
+
+        tests += list_tests_from_file(path, group_by)
+
+    del os.environ[LYMBO_TEST_COLLECTION]
+
+    if filter_by_path:
+        for group in tests:
+            new_group = []
+            for test in group:
+                if match_filter(str(test), filter_by_path):
+                    new_group.append(test)
+                else:
+                    logger().debug(f"collect_tests - {str(test)} has been filtered.")
+
+            if new_group:
+                filtered_tests.append(new_group)
+    else:
+        filtered_tests = tests
+
+    test_plan = TestPlan(filtered_tests, group_by)
+
+    return test_plan
+
+
+## List tests
 
 
 @trace_call
@@ -138,25 +180,6 @@ def parse_body(
     return collected_tests
 
 
-@trace_call
-def collect_tests(paths: list[Path], group_by: GroupBy) -> TestPlan:
-    """Collect all the functions/methods decorated with @lymbo.test."""
-
-    tests = []
-
-    os.environ[LYMBO_TEST_COLLECTION] = "1"
-
-    for path in list_python_files(paths):
-
-        tests += list_tests_from_file(path, group_by)
-
-    del os.environ[LYMBO_TEST_COLLECTION]
-
-    test_plan = TestPlan(tests, group_by)
-
-    return test_plan
-
-
 def eval_ast_call(call_node, global_vars, local_vars):
 
     # local_vars and global_vars should be passed in the context
@@ -241,3 +264,45 @@ def dynamic_import_modules(imports: list[tuple[str, str]]) -> dict[str, str]:
             global_vars[alias] = importlib.import_module(full_name)
 
     return global_vars
+
+
+## Filter tests
+
+
+def extract_words_from_filter(filter: str) -> list[str]:
+    """Parse a filter and returns only the words of the expression.
+    Example: filter = "abc and not (def or ghi)"
+             output = ["abc", "def", "ghi"]
+    """
+
+    # remove the stop words
+    stop_words = ["(", ")", "and", "or", "not"]
+    for stop_word in stop_words:
+        filter = filter.replace(stop_word, " ")
+
+    # extract words
+    words = set(filter.split(" "))
+
+    return [word for word in words if word != ""]
+
+
+def match_filter(item: str, filter: str) -> bool:
+    """Indicate if this item match with the filter"""
+    words = {word: False for word in extract_words_from_filter(filter)}
+
+    for word in words:
+        words[word] = word in item
+
+    # We sort the list of words to first replace the longer words to have partial
+    # replacement if for example we have these two words: abc and abcdef.
+    for word in sorted(words, key=len, reverse=True):
+        filter = filter.replace(word, str(words[word]))
+
+    try:
+        match = eval(filter)
+    except Exception as ex:
+        raise LymboExceptionFilter(
+            f'The filter ["{filter}"] is broken. exception=[{str(ex)}]'
+        )
+
+    return match

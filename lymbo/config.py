@@ -61,7 +61,14 @@ def parse_args() -> argparse.Namespace:
         "--workers",
         type=int,
         default=None,
-        help="The number of workers in parrallel (default = number of CPU)",
+        help="The number of workers in parrallel (default = number of CPU).",
+    )
+
+    parser.add_argument(
+        "--filter",
+        type=str,
+        default="",
+        help="Select only the tests that match this filter (include full path and parameters).",
     )
 
     return parser.parse_args()

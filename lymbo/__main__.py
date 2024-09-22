@@ -28,7 +28,7 @@ def lymbo_entry_point():
     )
 
     print("==== collecting tests")
-    test_plan = collect_tests(config.paths, config.groupby)
+    test_plan = collect_tests(config.paths, config.groupby, config.filter)
 
     if config.collect:
         test_plan_to_print, _ = test_plan.test_plan(show_status=False)
