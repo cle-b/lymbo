@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
         type=ReportFailure,
         choices=ReportFailure,
         default=ReportFailure.NORMAL,
-        help="The log level",
+        help="The level of detail to display in the console in case of a failure.",
     )
 
     parser.add_argument(

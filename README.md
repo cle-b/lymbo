@@ -232,7 +232,7 @@ optional arguments:
                         The log level
   --log LOG             Path to the log file.
   --report-failure {ReportFailure.NONE,ReportFailure.SIMPLE,ReportFailure.NORMAL,ReportFailure.FULL}
-                        The log level
+                        The level of detail to display in the console in case of a failure.
   --workers WORKERS     The number of workers in parrallel (default = number of CPU).
   --filter FILTER       Select only the tests that match this filter (include full path and parameters).
 ```
