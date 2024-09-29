@@ -8,7 +8,9 @@ from lymbo.log import LogLevel
 
 def parse_args() -> argparse.Namespace:
 
-    parser = argparse.ArgumentParser(description="lymbo")
+    parser = argparse.ArgumentParser(
+        description="A test runner designed for large test suites."
+    )
 
     parser.add_argument(
         "paths",
@@ -54,7 +56,7 @@ def parse_args() -> argparse.Namespace:
         type=ReportFailure,
         choices=ReportFailure,
         default=ReportFailure.NORMAL,
-        help="The log level",
+        help="The level of detail to display in the console in case of a failure.",
     )
 
     parser.add_argument(
