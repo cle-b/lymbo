@@ -8,7 +8,7 @@ from lymbo.log import LogLevel
 
 def parse_args() -> argparse.Namespace:
 
-    parser = argparse.ArgumentParser(description="lymbo")
+    parser = argparse.ArgumentParser(description="A test runner designed for large test suites.")
 
     parser.add_argument(
         "paths",

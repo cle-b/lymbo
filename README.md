@@ -9,7 +9,7 @@ The key features of `lymbo` are:
   * No dependencies
 
 
-### Concetps
+## Concetps
 
 In `lymbo`, there are only two key concepts to understand: `test` and `resource`.
 
@@ -83,7 +83,7 @@ examples/readme.py::is_perfect_square(n=116)
 ====
 ```
 
-n the example above, the tests were executed independently. As a result, they may have been run in parallel by multiple workers.
+In the example above, the tests were executed independently. As a result, they may have been run in parallel by multiple workers.
 
 We can group the tests to ensure they run sequentially on the same worker. In the example below, we will group the tests by function and execute a test collection to print the test plan:
 
@@ -204,4 +204,35 @@ In this case, the execution of the 3 tests using 2 workers will take only 5 seco
 - examples/readme.py::demo_resource_scope_second_test() [PASSED]
 - examples/readme.py::demo_resource_scope_third_test() [PASSED]
 ==== 3 passed  
+```
+
+## Command line
+
+```
+(venv) ~/dev/lymbo$ lymbo -h
+usage: lymbo [-h] [--version] [--collect] [--groupby {GroupBy.NONE,GroupBy.MODULE,GroupBy.CLASS,GroupBy.FUNCTION}] [--report REPORT]
+             [--log-level {LogLevel.NOTSET,LogLevel.DEBUG,LogLevel.INFO,LogLevel.WARNING,LogLevel.ERROR,LogLevel.CRITICAL}] [--log LOG]
+             [--report-failure {ReportFailure.NONE,ReportFailure.SIMPLE,ReportFailure.NORMAL,ReportFailure.FULL}] [--workers WORKERS]
+             [--filter FILTER]
+             [PATH ...]
+
+A test runner designed for large test suites.
+
+positional arguments:
+  PATH                  Path(s) for test collection
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             Print the version and exit.
+  --collect             Print the test plan and exit.
+  --groupby {GroupBy.NONE,GroupBy.MODULE,GroupBy.CLASS,GroupBy.FUNCTION}
+                        Grouped tests are executed sequentialy.
+  --report REPORT       Save the report in that directory.
+  --log-level {LogLevel.NOTSET,LogLevel.DEBUG,LogLevel.INFO,LogLevel.WARNING,LogLevel.ERROR,LogLevel.CRITICAL}
+                        The log level
+  --log LOG             Path to the log file.
+  --report-failure {ReportFailure.NONE,ReportFailure.SIMPLE,ReportFailure.NORMAL,ReportFailure.FULL}
+                        The log level
+  --workers WORKERS     The number of workers in parrallel (default = number of CPU).
+  --filter FILTER       Select only the tests that match this filter (include full path and parameters).
 ```
