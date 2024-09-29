@@ -7,11 +7,11 @@ setup:
 
 
 format:
-	black lymbo tests
+	black lymbo tests examples
 
 lint:
-	black --check lymbo tests
-	flake8 lymbo tests
+	black --check lymbo tests examples
+	flake8 lymbo tests examples
 
 typing:
 	mypy
