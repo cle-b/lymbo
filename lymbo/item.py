@@ -203,14 +203,22 @@ class TestItem:
 
         message = []
 
-        first_line_test = 3 if self.asynchronous else 2
-
         if reason:
             tb = traceback.extract_tb(reason.__traceback__)
 
+            first_line_test = 0
+
+            while first_line_test < len(tb):
+                filename, _, funcname, _ = tb[first_line_test]
+
+                if filename.endswith(str(self.path)) and self.fnc == funcname:
+                    break
+
+                first_line_test += 1
+
             if len(tb) > first_line_test:
                 # We get the line in the test where the exception has been raised
-                filename, lineno, funcname, text = tb[first_line_test]
+                filename, lineno, funcname, _ = tb[first_line_test]
 
                 message.append(
                     f"{type(reason).__name__} in {filename}, line {lineno}, in {funcname}:"
@@ -327,16 +335,16 @@ class TestPlan:
                     test_output = [line for line in test.output.getvalue().split("\n")]
                     if test_output and not test_output[-1].strip():
                         del test_output[-1]
-                    if test_output:
-                        output.append(" - - - - output:")
-                        for line in test_output:
-                            output.append(f"{padding}{line}")
-                    output.append(" - - - - reason:")
                     if report_failure in (
                         ReportFailure.SIMPLE,
                         ReportFailure.NORMAL,
                         ReportFailure.FULL,
                     ):
+                        if test_output:
+                            output.append(" - - - - output:")
+                            for line in test_output:
+                                output.append(f"{padding}{line}")
+                        output.append(" - - - - reason:")
                         output.append(f"{padding}{test.reason}")
                     if report_failure in (ReportFailure.NORMAL, ReportFailure.FULL):
                         output.append(f"{padding}---------------------")
