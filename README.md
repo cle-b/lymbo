@@ -1,8 +1,8 @@
 # lymbo
 
-`lymbo` is a test runner designed for large test suites.
+* **lymbo** is a test runner designed for large test suites and small scripts.
 
-The key features of `lymbo` are:
+The key features of **lymbo** are:
 
   * Parallel execution by default
   * Simplicity
@@ -11,7 +11,7 @@ The key features of `lymbo` are:
 
 ## Concetps
 
-In `lymbo`, there are only two key concepts to understand: `test` and `resource`.
+In **lymbo**, there are only two key concepts to understand: `test` and `resource`.
 
 ### Test
 
@@ -99,6 +99,31 @@ We can group the tests to ensure they run sequentially on the same worker. In th
   | - examples/readme.py::is_perfect_square(n=116)
 ==== 5 tests in 2 groups
 ``` 
+
+For a very simple unit test, you can decorate the function you want to test and verify the returned value to assert the test outcome.
+
+```python
+@lymbo.test(args(a=4, b=2), expected(2))
+@lymbo.test(args(a=9, b=2), expected=expected(4.5))
+@lymbo.test(args(a=9, b=0), expected=expected(ZeroDivisionError))
+def division(a, b):
+    return a / b
+```
+
+```
+(venv) ~/dev/lymbo$ lymbo examples/readme.py --filter=division
+** lymbo 0.3.0 (python 3.9.18) (Linux-5.15.0-122-generic-x86_64-with-glibc2.35) **
+==== collecting tests
+==== 3 tests in 3 groups
+==== running tests
+.P.P.P
+==== tests executed in 0 second
+==== results
+- examples/readme.py::division(a=4,b=2)->(value=2) [PASSED]
+- examples/readme.py::division(a=9,b=2)->(value=4.5) [PASSED]
+- examples/readme.py::division(a=9,b=0)->(value=ZeroDivisionError) [PASSED]
+==== 3 passed 
+```
 
 ### Resource
 
@@ -216,7 +241,7 @@ usage: lymbo [-h] [--version] [--collect] [--groupby {GroupBy.NONE,GroupBy.MODUL
              [--filter FILTER]
              [PATH ...]
 
-A test runner designed for large test suites.
+A test runner designed for large test suites and small scripts.
 
 positional arguments:
   PATH                  Path(s) for test collection

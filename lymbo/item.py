@@ -16,6 +16,7 @@ from typing import Optional
 from typing import Union
 
 import lymbo
+from lymbo.cm import ExpectedAssertion
 from lymbo.env import LYMBO_REPORT_PATH
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
 from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
@@ -58,12 +59,14 @@ class TestItem:
         fnc: str,
         parameters: tuple[tuple[Any], dict[str, Any]],
         cls: Optional[str],
+        expected: Optional[ExpectedAssertion],
     ):
         self.path = path
         self.asynchronous = asynchronous
         self.fnc = fnc
         self.parameters = parameters
         self.cls = cls
+        self.expected: ExpectedAssertion = expected if expected else ExpectedAssertion()
 
         md5 = hashlib.md5(str(self).encode()).hexdigest()
         timestamp = int(time.time() * 1000000)
@@ -101,7 +104,21 @@ class TestItem:
             call.append(f"{k}={print_variable(v)}")
         s += ",".join(call)
         s += ")"
-
+        if self.expected.value or self.expected.match:
+            s += "->("
+            if self.expected.value:
+                s += "value="
+                if type(self.expected.value) is str:
+                    s += f'"{self.expected.value}"'
+                elif isinstance(self.expected.value, type):
+                    s += f"{self.expected.value.__name__}"
+                else:
+                    s += f"{self.expected.value}"
+            if self.expected.value and self.expected.match:
+                s += ", "
+            if self.expected.match:
+                s += f"match={self.expected.match}"
+            s += ")"
         return s
 
     def __repr__(self) -> str:

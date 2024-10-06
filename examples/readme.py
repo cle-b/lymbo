@@ -3,13 +3,20 @@ import math
 import time
 
 import lymbo
-from lymbo import args, expand
+from lymbo import args, expand, expected
 from lymbo import scope_global
 
 
 @lymbo.test()
 def addition():
     assert 1 + 2 == 3, "Addition test failed: 1 + 2 did not equal 3"
+
+
+@lymbo.test(args(a=4, b=2), expected(2))
+@lymbo.test(args(a=9, b=2), expected=expected(4.5))
+@lymbo.test(args(a=9, b=0), expected=expected(ZeroDivisionError))
+def division(a, b):
+    return a / b
 
 
 @lymbo.test(args(n=expand(1, 4, 9, 116)))
