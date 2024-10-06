@@ -133,13 +133,18 @@ def parse_body(
                             if getattr(decorator.func.value, "id", None) == "lymbo":
 
                                 args_call = None
+                                expected = None
 
                                 if decorator.args:
                                     args_call = decorator.args[0]
-                                else:
-                                    for kw in decorator.keywords:
-                                        if kw.arg == "args":
-                                            args_call = kw.value
+                                    if len(decorator.args) == 2:
+                                        expected = decorator.args[1]
+
+                                for kw in decorator.keywords:
+                                    if kw.arg == "args":
+                                        args_call = kw.value
+                                    if kw.arg == "expected":
+                                        expected = kw.value
 
                                 if args_call:
                                     flattened_args = eval_ast_call(
@@ -147,6 +152,12 @@ def parse_body(
                                     )
                                 else:
                                     flattened_args = args()
+
+                                expected_assertion = None
+                                if expected:
+                                    expected_assertion = eval_ast_call(
+                                        expected, global_vars, local_vars
+                                    )
 
                                 tests = []
                                 for f_args in flattened_args:
@@ -158,6 +169,7 @@ def parse_body(
                                                 item.name,
                                                 f_args,
                                                 classdef.name if classdef else None,
+                                                expected_assertion,
                                             ),
                                         ]
                                     )

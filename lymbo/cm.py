@@ -1,11 +1,17 @@
 import contextlib
+from dataclasses import dataclass
 import os
+import re
+from typing import Any
+from typing import Type
+from typing import Optional
+from typing import Union
 
 from lymbo.env import LYMBO_TEST_COLLECTION
 
 
 @contextlib.contextmanager
-def test(args=None):
+def test(args=None, expected=None):
     yield
 
 
@@ -47,6 +53,47 @@ def args(*args, **kwargs):
                 flattened_params = new_flattened_params
 
         return flattened_params
+
+
+@dataclass
+class ExpectedAssertion:
+    value: Union[Type[Any], Any] = None
+    match: Union[str, None] = None
+
+    def assert_(self, returned_value: Any) -> Optional[str]:
+        """
+        Compare the value returned by a function with its expected value.
+
+        Return a description of the failure if they don't match, or None if they matched.
+        """
+        failure: Optional[str] = None
+
+        if self.value:
+            if isinstance(self.value, type):
+                if type(returned_value) is not self.value:
+                    failure = f"Expected type {self.value.__name__}, but got type {type(returned_value).__name__}."
+            else:
+                if returned_value != self.value:
+                    failure = f"Expected value {self.value}, but got {returned_value}."
+
+        if not failure:
+            if self.match:
+                if not re.match(self.match, str(returned_value)):
+                    failure = f"Value '{returned_value}' does not match the expected pattern '{self.match}'."
+
+        return failure
+
+
+def expected(
+    value: Union[Type[Any], Any, None] = None, match: Union[str, None] = None
+) -> ExpectedAssertion:
+    """
+    Define what we expect the function to return.
+
+    - value: The expected type or object value. Can be None.
+    - match: A regular expression to match. Can be None.
+    """
+    return ExpectedAssertion(value, match)
 
 
 class ArgParams:

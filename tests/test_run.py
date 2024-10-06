@@ -86,5 +86,45 @@ class TestTestItemStatus(unittest.TestCase):
             self.assertEqual(status["failed"], TestStatus.FAILED)
 
 
+class TestTestItemSExpectedAssetion(unittest.TestCase):
+
+    def _test(self, pattern):
+        test_plan = collect_tests(
+            [Path(os.path.join(dir, "data_run/run_expected.py"))],
+            GroupBy.MODULE,
+            pattern,
+        )
+
+        _ = TestReport()
+
+        run_test_plan(test_plan, 1)
+
+        status = {}
+
+        for group in test_plan:
+            for test in group:
+                test.refresh_from_report()
+                for s in TestStatus:
+                    if s.value.lower() in str(test):
+                        status[s] = test.status
+
+        for s in status:
+
+            with self.subTest(f"the test {s.value.lower()}"):
+                self.assertEqual(status[s], s)
+
+    def test_value(self):
+        self._test("value_")
+
+    def test_type(self):
+        self._test("type_")
+
+    def test_exception(self):
+        self._test("exception_")
+
+    def test_match(self):
+        self._test("match_")
+
+
 if __name__ == "__main__":
     unittest.main()

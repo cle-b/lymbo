@@ -7,7 +7,7 @@ name = "lymbo"
 authors = [
     {name = "cle-b", email = "cle@tictac.pm"},
 ]
-description="A test runner designed for large test suites."
+description="A test runner designed for large test suites and small scripts."
 readme="README.md"
 requires-python = ">=3.9"
 license = {text = "Apache-2.0"}

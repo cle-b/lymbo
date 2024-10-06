@@ -161,14 +161,32 @@ def run_test(test_item: TestItem):
         try:
             test_item.start()
             if asynchronous:
-                asyncio.run(test_function(*args, **kwargs))
+                returned_value = asyncio.run(test_function(*args, **kwargs))
             else:
-                test_function(*args, **kwargs)
-            test_item.end()
-            print(f"{color.GREEN}P{color.RESET}", end="", flush=True)
+                returned_value = test_function(*args, **kwargs)
+            failure = test_item.expected.assert_(returned_value)
+            if failure:
+                ex = AssertionError(failure)
+                test_item.end(reason=ex)
+                print(f"{color.RED}F{color.RESET}", end="", flush=True)
+            else:
+                test_item.end()
+                print(f"{color.GREEN}P{color.RESET}", end="", flush=True)
         except AssertionError as ex:
             test_item.end(reason=ex)
             print(f"{color.RED}F{color.RESET}", end="", flush=True)
         except Exception as ex:
-            test_item.end(reason=ex)
-            print(f"{color.YELLOW}B{color.RESET}", end="", flush=True)
+            if isinstance(test_item.expected.value, type) and issubclass(
+                test_item.expected.value, BaseException
+            ):
+                failure = test_item.expected.assert_(ex)
+                if failure:
+                    ex = AssertionError(failure)
+                    test_item.end(reason=ex)
+                    print(f"{color.RED}F{color.RESET}", end="", flush=True)
+                else:
+                    test_item.end()
+                    print(f"{color.GREEN}P{color.RESET}", end="", flush=True)
+            else:
+                test_item.end(reason=ex)
+                print(f"{color.YELLOW}B{color.RESET}", end="", flush=True)
