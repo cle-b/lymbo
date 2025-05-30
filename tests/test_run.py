@@ -99,19 +99,13 @@ class TestTestItemSExpectedAssetion(unittest.TestCase):
 
         run_test_plan(test_plan, 1)
 
-        status = {}
-
         for group in test_plan:
             for test in group:
                 test.refresh_from_report()
                 for s in TestStatus:
                     if s.value.lower() in str(test):
-                        status[s] = test.status
-
-        for s in status:
-
-            with self.subTest(f"the test {s.value.lower()}"):
-                self.assertEqual(status[s], s)
+                        with self.subTest(f"the test {test}"):
+                            self.assertEqual(test.status, s)
 
     def test_value(self):
         self._test("value_")
