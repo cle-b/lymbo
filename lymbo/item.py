@@ -16,6 +16,7 @@ from typing import Optional
 from typing import Union
 
 import lymbo
+from lymbo.cm import expected
 from lymbo.cm import ExpectedAssertion
 from lymbo.env import LYMBO_REPORT_PATH
 from lymbo.env import LYMBO_TEST_SCOPE_CLASS
@@ -23,6 +24,7 @@ from lymbo.env import LYMBO_TEST_SCOPE_FUNCTION
 from lymbo.env import LYMBO_TEST_SCOPE_MAX
 from lymbo.env import LYMBO_TEST_SCOPE_MODULE
 from lymbo.env import LYMBO_TEST_SCOPE_GLOBAL
+from lymbo.utils import is_defined
 from lymbo import color
 
 
@@ -59,14 +61,16 @@ class TestItem:
         fnc: str,
         parameters: tuple[tuple[Any], dict[str, Any]],
         cls: Optional[str],
-        expected: Optional[ExpectedAssertion],
+        expected_assertion: Optional[ExpectedAssertion],
     ):
         self.path = path
         self.asynchronous = asynchronous
         self.fnc = fnc
         self.parameters = parameters
         self.cls = cls
-        self.expected: ExpectedAssertion = expected if expected else ExpectedAssertion()
+        self.expected: ExpectedAssertion = (
+            expected_assertion if expected_assertion else expected()
+        )
 
         md5 = hashlib.md5(str(self).encode()).hexdigest()
         timestamp = int(time.time() * 1000000)
@@ -104,9 +108,9 @@ class TestItem:
             call.append(f"{k}={print_variable(v)}")
         s += ",".join(call)
         s += ")"
-        if self.expected.value or self.expected.match:
+        if is_defined(self.expected.value) or is_defined(self.expected.match):
             s += "->("
-            if self.expected.value:
+            if is_defined(self.expected.value):
                 s += "value="
                 if type(self.expected.value) is str:
                     s += f'"{self.expected.value}"'
@@ -114,9 +118,9 @@ class TestItem:
                     s += f"{self.expected.value.__name__}"
                 else:
                     s += f"{self.expected.value}"
-            if self.expected.value and self.expected.match:
+            if is_defined(self.expected.value) and is_defined(self.expected.match):
                 s += ", "
-            if self.expected.match:
+            if is_defined(self.expected.match):
                 s += f"match={self.expected.match}"
             s += ")"
         return s
@@ -318,7 +322,7 @@ class TestPlan:
                     group_msg += f"{tests[0].path}::{tests[0].cls}::{tests[0].fnc}"
                 output.append(group_msg)
             for test in tests:
-                repr = f"{'  | -' if len(tests)>1 else '-'} {test}"
+                repr = f"{'  | -' if len(tests) > 1 else '-'} {test}"
                 if show_status:
                     test.refresh_from_report()
                     tests_status[test.status] += 1

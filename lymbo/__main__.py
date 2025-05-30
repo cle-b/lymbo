@@ -36,7 +36,7 @@ def lymbo_entry_point():
 
     nb_tests, nb_groups = test_plan.count
     print(
-        f"==== {nb_tests} test{'s' if nb_tests>1 else ''} in {nb_groups} group{'s' if nb_groups>1 else ''}"
+        f"==== {nb_tests} test{'s' if nb_tests > 1 else ''} in {nb_groups} group{'s' if nb_groups > 1 else ''}"
     )
 
     if config.collect:
@@ -51,7 +51,7 @@ def lymbo_entry_point():
 
     duration = run_test_plan(test_plan, config.workers)
 
-    print(f"\n==== tests executed in {duration} second{'s' if duration>1 else ''}")
+    print(f"\n==== tests executed in {duration} second{'s' if duration > 1 else ''}")
 
     print("==== results")
     test_plan_to_print, tests_status = test_plan.test_plan(show_status=True)

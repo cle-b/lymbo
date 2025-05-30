@@ -8,6 +8,9 @@ from typing import Optional
 from typing import Union
 
 from lymbo.env import LYMBO_TEST_COLLECTION
+from lymbo.utils import is_defined
+from lymbo.utils import undefined
+from lymbo.utils import _UNDEFINED
 
 
 @contextlib.contextmanager
@@ -57,8 +60,8 @@ def args(*args, **kwargs):
 
 @dataclass
 class ExpectedAssertion:
-    value: Union[Type[Any], Any] = None
-    match: Union[str, None] = None
+    value: Union[Type[Any], Any, _UNDEFINED]
+    match: Union[str, _UNDEFINED]
 
     def assert_(self, returned_value: Any) -> Optional[str]:
         """
@@ -68,7 +71,7 @@ class ExpectedAssertion:
         """
         failure: Optional[str] = None
 
-        if self.value:
+        if is_defined(self.value):
             if isinstance(self.value, type):
                 if type(returned_value) is not self.value:
                     failure = f"Expected type {self.value.__name__}, but got type {type(returned_value).__name__}."
@@ -77,7 +80,7 @@ class ExpectedAssertion:
                     failure = f"Expected value {self.value}, but got {returned_value}."
 
         if not failure:
-            if self.match:
+            if isinstance(self.match, str):
                 if not re.match(self.match, str(returned_value)):
                     failure = f"Value '{returned_value}' does not match the expected pattern '{self.match}'."
 
@@ -85,7 +88,8 @@ class ExpectedAssertion:
 
 
 def expected(
-    value: Union[Type[Any], Any, None] = None, match: Union[str, None] = None
+    value: Union[Type[Any], Any, _UNDEFINED] = undefined(),
+    match: Union[str, _UNDEFINED] = undefined(),
 ) -> ExpectedAssertion:
     """
     Define what we expect the function to return.
