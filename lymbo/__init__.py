@@ -11,7 +11,7 @@ from lymbo.resource_manager import scope_function
 from lymbo.resource_manager import scope_global
 from lymbo.resource_manager import scope_module
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 __all__ = [
     "args",
