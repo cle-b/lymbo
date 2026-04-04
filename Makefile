@@ -7,10 +7,10 @@ setup:
 
 
 format:
-	black lymbo tests examples
+	black lymbo tests examples --target-version py39
 
 lint:
-	black --check lymbo tests examples
+	black --check lymbo tests examples --target-version py39
 	flake8 lymbo tests examples
 
 typing:
